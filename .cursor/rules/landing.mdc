@@ -1,0 +1,19 @@
+---
+description: Landing — kabinet URL'lari va build
+globs: landing/**/*
+alwaysApply: false
+---
+
+# Landing (milliycrm.uz)
+
+Vanilla Vite (React yo‘q). Port: `5170`.
+
+Kabinet linklari `index.html` da production URL:
+
+- Xaridor → `https://user.milliycrm.uz`
+- Zavod → `https://zavod.milliycrm.uz`
+- Dostavka → `https://yetkazish.milliycrm.uz`
+- Kurator → `https://kurator.milliycrm.uz`
+- Admin → `https://admin.milliycrm.uz`
+
+`localhost:517x` ishlatilmasin. O‘zgartirishdan keyin `npm run build` — deploy uchun `dist/`.

@@ -1,0 +1,39 @@
+---
+description: Frontend React kabinetlari — API, auth, sahifa konvensiyalari
+globs: "{admin,admin-kurator,foydalanuvchi,dostavka,ishlab chiqaruvchi}/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Frontend kabinetlar
+
+Stack: React 19, Vite, Tailwind 4, react-router-dom, framer-motion, lucide.
+
+## Majburiy
+
+```ts
+// src/shared/config.ts
+export const API_URL = 'https://api.milliycrm.uz/api/v1'
+```
+
+`api.ts` faqat `import { API_URL } from './config'` — env orqali emas.
+
+## Token kalitlari
+
+- admin → `mydiller_admin_token`
+- kurator → `mydiller_kurator_token`
+- zavod → `mydiller_ishlabchiqaruvchi_token`
+- xaridor → `mydiller_xaridor_token`
+- dostavka → `mydiller_dostavka_token`
+
+## Patterns
+
+- Modul: `src/modules/<feature>/`, shell: `src/app/AppShell.tsx`
+- Xatolik: `ApiRequestError` + Snackbar; FormData da `Content-Type` qo‘yilmasin
+- Mahsulot update/create: `moq`, `payment_term`, `payment_days`, `specs` majburiy (backend validate)
+- PDF: `.../contract.pdf`, `.../invoice.pdf` (na `contract-pdf`)
+- `limit` query ≤ 100 (backend chegara)
+
+## Admin vs kurator
+
+- `admin`: `/admin/buyurtmalar` faqat `general` (backend `RequireRole`)
+- `admin-kurator`: `/kurator/buyurtmalar`, force-majeure, hujjatlar

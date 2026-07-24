@@ -1,0 +1,32 @@
+---
+description: Backend Go — modul, auth, migratsiya konvensiyalari
+globs: backend/**/*
+alwaysApply: false
+---
+
+# Backend (Go)
+
+Stack: Chi, pgx, JWT, bcrypt, golang-migrate. Modul: `model → repository → service → handler → module`.
+
+## Auth
+
+- Subjects: `admin`, `ishlabchiqaruvchi`, `xaridor`, `dostavka`
+- Admin rollar: `general`, `admin`, `kurator`
+- Middleware: `auth.Middleware` + `RequireSubject` / `RequireRole`
+- Xatoliklar: `httputil.JSON` / `FieldError`, o‘zbekcha `ValidationError`
+
+## Buyurtma
+
+Status: `yangi` → `qabul_qilindi` → `logistikaga_uzatildi` → `yolda` → `yetkazildi_tolov_kutilmoqda` → `yakunlandi`  
+Yoki: `fors_major` → `kafolat_bilan_yopildi`
+
+Payment phase: `none` | `awaiting_advance` | `advance_done` | `awaiting_final` | `paid`  
+Terms: `prepay_100`, `deferred`, `pod_zakaz_50_50`
+
+## Qoidalar
+
+- Yangi jadval = yangi migratsiya (`migrations/00000N_*.up.sql` + `.down.sql`)
+- Router faqat `module.RegisterRoutes`; DI `internal/app/app.go` da
+- Upload: `internal/pkg/upload`, max ~5MB; PDF: `modules/order/pdf.go`
+- Production CORS domenlari `config.json` da bo‘lishi shart
+- `domains` kaliti hozir o‘qilmaydi — CORS/upload ishlatiladi
