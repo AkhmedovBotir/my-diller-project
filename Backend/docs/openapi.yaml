@@ -1,0 +1,867 @@
+openapi: 3.0.3
+info:
+  title: Diller Backend API
+  description: Go + PostgreSQL asosidagi Modular Monolith backend API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: Admin Auth
+    description: Admin autentifikatsiya
+  - name: Admin Profile
+    description: Admin profil boshqaruvi
+  - name: Admins
+    description: Adminlar CRUD (general admin uchun)
+  - name: Ishlabchiqaruvchi Auth
+    description: Ishlab chiqaruvchi autentifikatsiya
+  - name: Ishlabchiqaruvchi Profile
+    description: Ishlab chiqaruvchi profil boshqaruvi
+  - name: Ishlabchiqaruvchilar
+    description: Ishlab chiqaruvchilar CRUD (admin boshqaruvi)
+  - name: Categories
+    description: Kategoriyalar CRUD (admin)
+  - name: Subcategories
+    description: Subkategoriyalar CRUD (admin, o'z id si bilan)
+  - name: Manufacturer Products
+    description: Ishlab chiqaruvchi mahsulotlari
+  - name: Admin Products
+    description: Admin mahsulot boshqaruvi (tasdiq / bekor)
+
+paths:
+  /admin/auth/login:
+    post:
+      tags: [Admin Auth]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          description: Muvaffaqiyatli login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/profile:
+    get:
+      tags: [Admin Profile]
+      summary: Profil ma'lumotlarini olish
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Admin profili
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Admin Profile]
+      summary: Profil ma'lumotlarini yangilash
+      description: password bo'sh yoki yuborilmasa parol o'zgarmaydi. type o'zgartirib bo'lmaydi.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileInput'
+      responses:
+        '200':
+          description: Yangilangan profil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/admins:
+    get:
+      tags: [Admins]
+      summary: Adminlar ro'yxati
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Adminlar ro'yxati
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Admin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Admins]
+      summary: Yangi admin yaratish (faqat general)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminInput'
+      responses:
+        '201':
+          description: Yaratilgan admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /admin/admins/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Admins]
+      summary: Bitta adminni olish
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admins]
+      summary: Adminni yangilash (faqat general)
+      description: password bo'sh yoki yuborilmasa parol o'zgarmaydi.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAdminInput'
+      responses:
+        '200':
+          description: Yangilangan admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Admins]
+      summary: Adminni o'chirish (faqat general)
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: O'chirildi
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /ishlabchiqaruvchi/auth/login:
+    post:
+      tags: [Ishlabchiqaruvchi Auth]
+      summary: Ishlab chiqaruvchi login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          description: Muvaffaqiyatli login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IshlabchiqaruvchiLoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /ishlabchiqaruvchi/profile:
+    get:
+      tags: [Ishlabchiqaruvchi Profile]
+      summary: Profil ma'lumotlarini olish
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ishlab chiqaruvchi profili
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ishlabchiqaruvchi'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      tags: [Ishlabchiqaruvchi Profile]
+      summary: Profil ma'lumotlarini yangilash
+      description: password bo'sh yoki yuborilmasa parol o'zgarmaydi.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIshlabchiqaruvchiProfileInput'
+      responses:
+        '200':
+          description: Yangilangan profil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ishlabchiqaruvchi'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /ishlabchiqaruvchilar:
+    get:
+      tags: [Ishlabchiqaruvchilar]
+      summary: Ishlab chiqaruvchilar ro'yxati (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Ro'yxat
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ishlabchiqaruvchi'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Ishlabchiqaruvchilar]
+      summary: Yangi ishlab chiqaruvchi yaratish (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIshlabchiqaruvchiInput'
+      responses:
+        '201':
+          description: Yaratilgan yozuv
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ishlabchiqaruvchi'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /ishlabchiqaruvchilar/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Ishlabchiqaruvchilar]
+      summary: Bitta ishlab chiqaruvchini olish (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Yozuv
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ishlabchiqaruvchi'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Ishlabchiqaruvchilar]
+      summary: Ishlab chiqaruvchini yangilash (admin)
+      description: password bo'sh yoki yuborilmasa parol o'zgarmaydi.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIshlabchiqaruvchiInput'
+      responses:
+        '200':
+          description: Yangilangan yozuv
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ishlabchiqaruvchi'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Ishlabchiqaruvchilar]
+      summary: Ishlab chiqaruvchini o'chirish (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: O'chirildi
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Kategoriyalar ro'yxati
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Ro'yxat
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Categories]
+      summary: Kategoriya yaratish
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryInput'
+      responses:
+        '201':
+          description: Yaratilgan kategoriya
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /categories/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Categories]
+      summary: Bitta kategoriyani olish
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Kategoriya
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Categories]
+      summary: Kategoriyani yangilash
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryInput'
+      responses:
+        '200':
+          description: Yangilangan kategoriya
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Categories]
+      summary: Kategoriyani o'chirish
+      description: Bog'langan subkategoriyalar ham o'chadi.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: O'chirildi
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /subcategories:
+    get:
+      tags: [Subcategories]
+      summary: Subkategoriyalar ro'yxati
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category_id
+          in: query
+          description: Berilsa faqat shu kategoriyaning subkategoriyalari qaytadi
+          schema: { type: integer, format: int64 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Ro'yxat
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subcategory'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Subcategories]
+      summary: Subkategoriya yaratish
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubcategoryInput'
+      responses:
+        '201':
+          description: Yaratilgan subkategoriya
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subcategory'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /subcategories/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [Subcategories]
+      summary: Bitta subkategoriyani olish
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Subkategoriya
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subcategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Subcategories]
+      summary: Subkategoriyani yangilash
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubcategoryInput'
+      responses:
+        '200':
+          description: Yangilangan subkategoriya
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subcategory'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Subcategories]
+      summary: Subkategoriyani o'chirish
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: O'chirildi
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Admin:
+      type: object
+      properties:
+        id: { type: integer, format: int64, example: 1 }
+        first_name: { type: string, example: Ali }
+        last_name: { type: string, example: Valiyev }
+        phone: { type: string, example: '+998901234567' }
+        username: { type: string, example: admin }
+        type: { type: string, enum: [general, admin, kurator], example: general }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LoginInput:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, example: admin }
+        password: { type: string, example: secret123 }
+
+    LoginResponse:
+      type: object
+      properties:
+        token: { type: string, example: eyJhbGciOiJIUzI1NiIs... }
+        admin:
+          $ref: '#/components/schemas/Admin'
+
+    CreateAdminInput:
+      type: object
+      required: [first_name, last_name, phone, username, password, type]
+      properties:
+        first_name: { type: string, example: Ali }
+        last_name: { type: string, example: Valiyev }
+        phone: { type: string, example: '+998901234567' }
+        username: { type: string, example: ali_admin }
+        password: { type: string, minLength: 6, example: secret123 }
+        type: { type: string, enum: [general, admin, kurator], example: admin }
+
+    UpdateAdminInput:
+      type: object
+      required: [first_name, last_name, phone, username, type]
+      properties:
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string }
+        username: { type: string }
+        type: { type: string, enum: [general, admin, kurator] }
+        password:
+          type: string
+          minLength: 6
+          description: Bo'sh yoki yuborilmasa parol o'zgarmaydi
+
+    UpdateProfileInput:
+      type: object
+      required: [first_name, last_name, phone, username]
+      properties:
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string }
+        username: { type: string }
+        password:
+          type: string
+          minLength: 6
+          description: Bo'sh yoki yuborilmasa parol o'zgarmaydi
+
+    Ishlabchiqaruvchi:
+      type: object
+      properties:
+        id: { type: integer, format: int64, example: 1 }
+        company_name: { type: string, example: Samsung Uzbekistan }
+        first_name: { type: string, example: Jasur }
+        last_name: { type: string, example: Karimov }
+        phone: { type: string, example: '+998901112233' }
+        username: { type: string, example: samsung_uz }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    IshlabchiqaruvchiLoginResponse:
+      type: object
+      properties:
+        token: { type: string, example: eyJhbGciOiJIUzI1NiIs... }
+        ishlabchiqaruvchi:
+          $ref: '#/components/schemas/Ishlabchiqaruvchi'
+
+    CreateIshlabchiqaruvchiInput:
+      type: object
+      required: [company_name, first_name, last_name, phone, username, password]
+      properties:
+        company_name: { type: string, example: Samsung Uzbekistan }
+        first_name: { type: string, example: Jasur }
+        last_name: { type: string, example: Karimov }
+        phone: { type: string, example: '+998901112233' }
+        username: { type: string, example: samsung_uz }
+        password: { type: string, minLength: 6, example: secret123 }
+
+    UpdateIshlabchiqaruvchiInput:
+      type: object
+      required: [company_name, first_name, last_name, phone, username]
+      properties:
+        company_name: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string }
+        username: { type: string }
+        password:
+          type: string
+          minLength: 6
+          description: Bo'sh yoki yuborilmasa parol o'zgarmaydi
+
+    UpdateIshlabchiqaruvchiProfileInput:
+      type: object
+      required: [company_name, first_name, last_name, phone, username]
+      properties:
+        company_name: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string }
+        username: { type: string }
+        password:
+          type: string
+          minLength: 6
+          description: Bo'sh yoki yuborilmasa parol o'zgarmaydi
+
+    Category:
+      type: object
+      properties:
+        id: { type: integer, format: int64, example: 1 }
+        name: { type: string, example: Elektronika }
+        description: { type: string, example: Texnika va gadjetlar }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateCategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: Elektronika }
+        description: { type: string, example: Texnika va gadjetlar }
+
+    UpdateCategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: Elektronika }
+        description: { type: string, example: Yangilangan tavsif }
+
+    Subcategory:
+      type: object
+      properties:
+        id: { type: integer, format: int64, example: 1 }
+        category_id: { type: integer, format: int64, example: 1 }
+        name: { type: string, example: Telefonlar }
+        description: { type: string, example: Smartfonlar }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateSubcategoryInput:
+      type: object
+      required: [category_id, name]
+      properties:
+        category_id: { type: integer, format: int64, example: 1 }
+        name: { type: string, example: Telefonlar }
+        description: { type: string, example: Smartfonlar }
+
+    UpdateSubcategoryInput:
+      type: object
+      required: [category_id, name]
+      properties:
+        category_id: { type: integer, format: int64, example: 1 }
+        name: { type: string, example: Telefonlar }
+        description: { type: string, example: Yangilangan tavsif }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: NOTOGRI_SOROV
+        message:
+          type: string
+          example: Foydalanuvchi nomi kiritilishi shart
+        field:
+          type: string
+          description: Xatolik yuz bergan maydon (mavjud bo'lsa)
+          example: username
+
+  responses:
+    BadRequest:
+      description: Validatsiya xatosi
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Token yo'q, noto'g'ri yoki muddati tugagan
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Ruxsat yo'q (faqat general admin uchun)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Topilmadi
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Username band
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

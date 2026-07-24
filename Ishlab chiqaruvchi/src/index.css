@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: #f5f7f6;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+::selection {
+  background: #c9f560;
+  color: #173c32;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.stat-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 0.75rem;
+}
+
+.stat-icon-lime {
+  background: #efffcf;
+  color: #4d7c0f;
+}
+
+.stat-icon-green {
+  background: #eaf6f0;
+  color: #397461;
+}
+
+.stat-icon-orange {
+  background: #fff7ed;
+  color: #f97316;
+}
+
+.stat-icon-blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.quill-shell .ql-toolbar.ql-snow {
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 0.65rem 0.85rem;
+}
+
+.quill-shell .ql-container.ql-snow {
+  border: 0;
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+
+.quill-shell .ql-editor {
+  min-height: var(--quill-min-height, 180px);
+  line-height: 1.65;
+  color: #0f172a;
+}
+
+.quill-shell .ql-editor.ql-blank::before {
+  color: #94a3b8;
+  font-style: normal;
+}
+
+.quill-shell .ql-snow .ql-stroke {
+  stroke: #64748b;
+}
+
+.quill-shell .ql-snow .ql-fill {
+  fill: #64748b;
+}
+
+.quill-shell .ql-snow.ql-toolbar button:hover,
+.quill-shell .ql-snow .ql-toolbar button:hover,
+.quill-shell .ql-snow.ql-toolbar button.ql-active,
+.quill-shell .ql-snow .ql-toolbar button.ql-active {
+  color: #173c32;
+}
+
+.quill-shell-readonly .ql-toolbar {
+  display: none;
+}
+
+.quill-shell-readonly .ql-editor {
+  padding: 0;
+  min-height: 0;
+}
+

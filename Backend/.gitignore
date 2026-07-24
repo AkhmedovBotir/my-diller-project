@@ -1,0 +1,6 @@
+.env
+config.json
+*.exe
+/bin/
+/tmp/
+/uploads/
