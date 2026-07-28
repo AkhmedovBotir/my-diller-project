@@ -15,6 +15,7 @@ import (
 	"diller-backend/modules/category"
 	"diller-backend/modules/dostavka"
 	"diller-backend/modules/ishlabchiqaruvchi"
+	"diller-backend/modules/kurator"
 	"diller-backend/modules/notification"
 	"diller-backend/modules/order"
 	"diller-backend/modules/product"
@@ -32,6 +33,7 @@ func NewRouter(
 	productModule *product.Module,
 	orderModule *order.Module,
 	notificationModule *notification.Module,
+	kuratorModule *kurator.Module,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -57,6 +59,7 @@ func NewRouter(
 		productModule.RegisterRoutes(api)
 		orderModule.RegisterRoutes(api)
 		notificationModule.RegisterRoutes(api)
+		kuratorModule.RegisterRoutes(api)
 	})
 
 	return r

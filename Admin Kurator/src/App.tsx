@@ -4,7 +4,9 @@ import { useAuth } from './modules/auth/AuthContext'
 import { LoginPage } from './modules/auth/LoginPage'
 import { DashboardPage } from './modules/dashboard/DashboardPage'
 import { DocumentsPage } from './modules/documents/DocumentsPage'
+import { EarningsPage } from './modules/earnings/EarningsPage'
 import { FactoriesPage } from './modules/factories/FactoriesPage'
+import { KomissiyalarPage } from './modules/komissiyalar/KomissiyalarPage'
 import { NotificationsPage } from './modules/notifications/NotificationsPage'
 import { OrderDetailPage } from './modules/orders/OrderDetailPage'
 import { OrdersPage } from './modules/orders/OrdersPage'
@@ -66,6 +68,8 @@ export default function App() {
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="products" element={<ProductsPage />} />
+        <Route path="earnings" element={<EarningsPage />} />
+        <Route path="komissiyalar" element={<KomissiyalarPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>

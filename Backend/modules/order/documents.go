@@ -92,6 +92,7 @@ func BuildContractHTML(o *Order, items []OrderItem, m *manufacturerInfo, b *buye
 <tr><td>Telefon</td><td>%s</td><td>%s</td></tr>
 <tr><td>Manzil</td><td>%s</td><td>%s</td></tr>
 <tr><td>STIR</td><td>%s</td><td>%s</td></tr>
+<tr><td>MFO</td><td>%s</td><td>%s</td></tr>
 <tr><td>Hisob raqami</td><td>%s</td><td>%s</td></tr>
 <tr><td>Bank</td><td>%s</td><td>%s</td></tr>
 </table>
@@ -119,6 +120,7 @@ Yuzaga kelishi mumkin bo'lgan nizolar platforma qoidalari asosida hal qilinadi.<
 		esc(m.Phone), esc(b.Phone),
 		esc(m.Address), esc(b.Address),
 		esc(m.STIR), esc(b.STIR),
+		esc(m.MFO), esc(b.MFO),
 		esc(m.BankAccount), esc(b.BankAccount),
 		esc(m.BankName), esc(b.BankName),
 		itemsRows.String(),
@@ -150,6 +152,7 @@ func BuildInvoiceHTML(o *Order, items []OrderItem, m *manufacturerInfo, b *buyer
 <tr><th>Rekvizit</th><th>Sotuvchi</th><th>Xaridor</th></tr>
 <tr><td>Nomi</td><td>%s</td><td>%s</td></tr>
 <tr><td>STIR</td><td>%s</td><td>%s</td></tr>
+<tr><td>MFO</td><td>%s</td><td>%s</td></tr>
 <tr><td>Hisob raqami</td><td>%s</td><td>%s</td></tr>
 <tr><td>Bank</td><td>%s</td><td>%s</td></tr>
 </table>
@@ -165,6 +168,7 @@ func BuildInvoiceHTML(o *Order, items []OrderItem, m *manufacturerInfo, b *buyer
 		esc(o.InvoiceNumber), esc(o.InvoiceNumber), esc(o.Number), time.Now().Format("2006-01-02 15:04"),
 		esc(m.CompanyName), esc(b.ShopName),
 		esc(m.STIR), esc(b.STIR),
+		esc(m.MFO), esc(b.MFO),
 		esc(m.BankAccount), esc(b.BankAccount),
 		esc(m.BankName), esc(b.BankName),
 		itemsRows.String(),
@@ -191,6 +195,7 @@ func BuildCommissionInvoiceHTML(c *Commission, o *Order, m *manufacturerInfo) st
 <tr><th>Rekvizit</th><th>Qiymat</th></tr>
 <tr><td>Ishlab chiqaruvchi</td><td>%s</td></tr>
 <tr><td>STIR</td><td>%s</td></tr>
+<tr><td>MFO</td><td>%s</td></tr>
 <tr><td>Hisob raqami</td><td>%s</td></tr>
 <tr><td>Bank</td><td>%s</td></tr>
 <tr><td>Buyurtma summasi</td><td>%s so'm</td></tr>
@@ -201,7 +206,7 @@ func BuildCommissionInvoiceHTML(c *Commission, o *Order, m *manufacturerInfo) st
 </body>
 </html>`,
 		esc(o.Number), time.Now().Format("2006-01-02 15:04"),
-		esc(m.CompanyName), esc(m.STIR), esc(m.BankAccount), esc(m.BankName),
+		esc(m.CompanyName), esc(m.STIR), esc(m.MFO), esc(m.BankAccount), esc(m.BankName),
 		money(c.OrderAmount), money(c.Percent), money(c.Amount), statusText,
 	)
 }

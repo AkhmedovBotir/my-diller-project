@@ -31,13 +31,15 @@ import {
   paymentTermFull,
   ORDER_STATUS_FLOW,
 } from '../../shared/format'
+import { useNotifications } from '../notifications/NotificationsContext'
 import { useSnackbar } from '../../shared/Snackbar'
 import { formatCountdown, useCountdown } from '../../shared/useCountdown'
 import type { Order } from '../../shared/types'
 
-const STEPS: Array<{ status: (typeof ORDER_STATUS_FLOW)[number]; label: string; icon: typeof Circle }> = [
+const ALL_STEPS: Array<{ status: (typeof ORDER_STATUS_FLOW)[number]; label: string; icon: typeof Circle }> = [
   { status: 'yangi', label: 'Buyurtma qabul qilindi', icon: Circle },
   { status: 'qabul_qilindi', label: 'Ishlab chiqaruvchi tasdiqladi', icon: Check },
+  { status: 'tayyor_tolov_kutilmoqda', label: 'Tayyor, yakuniy to‘lov kutilmoqda', icon: Receipt },
   { status: 'logistikaga_uzatildi', label: 'Logistikaga uzatildi', icon: Truck },
   { status: 'yolda', label: 'Yo‘lda', icon: Truck },
   { status: 'yetkazildi_tolov_kutilmoqda', label: 'Yetkazildi, to‘lov kutilmoqda', icon: PackageCheck },
@@ -47,6 +49,7 @@ const STEPS: Array<{ status: (typeof ORDER_STATUS_FLOW)[number]; label: string; 
 export function OrderDetailPage() {
   const { id } = useParams()
   const { showSnackbar } = useSnackbar()
+  const { notifications, markRead } = useNotifications()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -172,9 +175,22 @@ export function OrderDetailPage() {
     )
   }
 
-  const flowIndex = ORDER_STATUS_FLOW.indexOf(order.status)
+  const STEPS =
+    order.payment_term === 'pod_zakaz_50_50'
+      ? ALL_STEPS
+      : ALL_STEPS.filter((step) => step.status !== 'tayyor_tolov_kutilmoqda')
+  const stepStatuses = STEPS.map((step) => step.status)
+  const flowIndex = stepStatuses.indexOf(order.status)
   const isSpecial = flowIndex === -1
-  const effectiveIndex = isSpecial ? ORDER_STATUS_FLOW.indexOf('yetkazildi_tolov_kutilmoqda') : flowIndex
+  const effectiveIndex = isSpecial ? stepStatuses.indexOf('yetkazildi_tolov_kutilmoqda') : flowIndex
+
+  const orderLink = `/xaridor/buyurtmalar/${order.id}`
+  const advanceRejection = notifications.find(
+    (item) => item.link === orderLink && !item.is_read && item.title.includes('Avans kvitansiyasi rad etildi'),
+  )
+  const paymentRejection = notifications.find(
+    (item) => item.link === orderLink && !item.is_read && item.title.includes('To‘lov kvitansiyasi rad etildi'),
+  )
 
   return (
     <div className="space-y-5">
@@ -211,6 +227,42 @@ export function OrderDetailPage() {
               </p>
             </div>
           </div>
+        </section>
+      )}
+
+      {advanceRejection && (
+        <section className="flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-5">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 shrink-0 text-red-500" size={20} />
+            <div>
+              <p className="text-sm font-bold text-red-700">{advanceRejection.title}</p>
+              <p className="mt-1 text-sm text-red-600">{advanceRejection.body}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => void markRead(advanceRejection.id)}
+            className="shrink-0 text-xs font-bold text-red-500 hover:underline"
+          >
+            Tushunarli
+          </button>
+        </section>
+      )}
+
+      {paymentRejection && (
+        <section className="flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-5">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 shrink-0 text-red-500" size={20} />
+            <div>
+              <p className="text-sm font-bold text-red-700">{paymentRejection.title}</p>
+              <p className="mt-1 text-sm text-red-600">{paymentRejection.body}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => void markRead(paymentRejection.id)}
+            className="shrink-0 text-xs font-bold text-red-500 hover:underline"
+          >
+            Tushunarli
+          </button>
         </section>
       )}
 
@@ -378,19 +430,25 @@ export function OrderDetailPage() {
                 </a>
               )}
 
-              {order.status === 'yetkazildi_tolov_kutilmoqda' && !order.payment_receipt_url && (
-                <label className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173c32] text-sm font-bold text-white transition hover:bg-[#0f2721]">
-                  {uploading ? <LoaderCircle className="animate-spin" size={16} /> : <Upload size={16} />}
-                  {uploading ? 'Yuklanmoqda...' : 'To‘lov kvitansiyasini yuklash'}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-                    className="hidden"
-                    onChange={(event) => void handleUploadReceipt(event)}
-                  />
-                </label>
-              )}
+              {((order.status === 'yetkazildi_tolov_kutilmoqda') ||
+                (order.status === 'tayyor_tolov_kutilmoqda' && order.payment_phase === 'awaiting_final')) &&
+                !order.payment_receipt_url && (
+                  <label className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173c32] text-sm font-bold text-white transition hover:bg-[#0f2721]">
+                    {uploading ? <LoaderCircle className="animate-spin" size={16} /> : <Upload size={16} />}
+                    {uploading
+                      ? 'Yuklanmoqda...'
+                      : order.status === 'tayyor_tolov_kutilmoqda'
+                        ? 'Yakuniy (2-50%) to‘lov kvitansiyasini yuklash'
+                        : 'To‘lov kvitansiyasini yuklash'}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                      className="hidden"
+                      onChange={(event) => void handleUploadReceipt(event)}
+                    />
+                  </label>
+                )}
 
               {order.payment_receipt_url && (
                 <a
@@ -404,7 +462,7 @@ export function OrderDetailPage() {
                 </a>
               )}
 
-              {!['yolda', 'yetkazildi_tolov_kutilmoqda'].includes(order.status) &&
+              {!['yolda', 'yetkazildi_tolov_kutilmoqda', 'tayyor_tolov_kutilmoqda'].includes(order.status) &&
                 !order.payment_receipt_url &&
                 order.payment_phase !== 'awaiting_advance' && (
                   <p className="text-center text-xs text-slate-400">Hozircha amal talab qilinmaydi</p>

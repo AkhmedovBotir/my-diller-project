@@ -11,6 +11,8 @@ import type {
   ForsMajorAlert,
   Ishlabchiqaruvchi,
   IshlabchiqaruvchiInput,
+  KuratorTolovSorovi,
+  KuratorTolovStatus,
   LoginResponse,
   Notification,
   Order,
@@ -246,7 +248,9 @@ export const api = {
   updateProduct: (id: number, input: ProductUpdateInput) => {
     if (input.images?.length) {
       const form = new FormData()
+      form.set('code', input.code)
       form.set('name', input.name)
+      form.set('city', input.city)
       form.set(
         'description',
         typeof input.description === 'string' ? input.description : JSON.stringify(input.description),
@@ -255,6 +259,9 @@ export const api = {
       form.set('subcategory_id', String(input.subcategory_id))
       form.set('price', String(input.price))
       form.set('quantity', String(input.quantity))
+      form.set('moq', String(input.moq))
+      form.set('payment_term', input.payment_term)
+      form.set('payment_days', String(input.payment_days))
       for (const file of input.images) form.append('images', file)
       return request<Product>(`/admin/products/${id}`, { method: 'PUT', body: form })
     }
@@ -262,12 +269,17 @@ export const api = {
     return request<Product>(`/admin/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
+        code: input.code,
         name: input.name,
+        city: input.city,
         description: input.description,
         category_id: input.category_id,
         subcategory_id: input.subcategory_id,
         price: input.price,
         quantity: input.quantity,
+        moq: input.moq,
+        payment_term: input.payment_term,
+        payment_days: input.payment_days,
       }),
     })
   },
@@ -316,6 +328,30 @@ export const api = {
 
   confirmCommissionPaid: (id: number) =>
     request<Commission>(`/admin/komissiyalar/${id}/confirm-paid`, { method: 'POST' }),
+
+  rejectCommission: (id: number, note?: string) =>
+    request<Commission>(`/admin/komissiyalar/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ note: note || '' }),
+    }),
+
+  // ---- Kurator kartaga pul yechish so'rovlari ----
+  kuratorTolovSorovlari: (params?: { status?: KuratorTolovStatus | ''; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 50))
+    query.set('offset', String(params?.offset ?? 0))
+    if (params?.status) query.set('status', params.status)
+    return request<KuratorTolovSorovi[]>(`/admin/kurator-tolov-sorovlari?${query.toString()}`)
+  },
+
+  payKuratorTolovSorov: (id: number) =>
+    request<KuratorTolovSorovi>(`/admin/kurator-tolov-sorovlari/${id}/pay`, { method: 'POST' }),
+
+  rejectKuratorTolovSorov: (id: number, note?: string) =>
+    request<KuratorTolovSorovi>(`/admin/kurator-tolov-sorovlari/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ admin_note: note || '' }),
+    }),
 
   platformSettings: () => request<PlatformSettings>('/admin/platform-settings'),
 

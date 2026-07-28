@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  Banknote,
   Building2,
   ChevronDown,
   FolderTree,
@@ -56,13 +57,15 @@ export function AppShell() {
                 ? 'Dostavka kompaniyalari'
                 : pathname.endsWith('/commissions')
                   ? 'Komissiyalar'
-                  : pathname.endsWith('/debts')
-                    ? 'Qarzlar'
-                    : pathname.endsWith('/settings')
-                      ? 'Platforma sozlamalari'
-                      : pathname.endsWith('/profile')
-                        ? 'Mening profilim'
-                        : 'Boshqaruv paneli'
+                  : pathname.endsWith('/kurator-tolovlari')
+                    ? 'Kurator to‘lov so‘rovlari'
+                    : pathname.endsWith('/debts')
+                      ? 'Qarzlar'
+                      : pathname.endsWith('/settings')
+                        ? 'Platforma sozlamalari'
+                        : pathname.endsWith('/profile')
+                          ? 'Mening profilim'
+                          : 'Boshqaruv paneli'
 
   const links = [
     { to: basePath, label: 'Asosiy', icon: LayoutDashboard, end: true },
@@ -76,6 +79,9 @@ export function AppShell() {
     { to: `${basePath}/products`, label: 'Mahsulotlar', icon: Package, end: false },
     { to: `${basePath}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, end: false },
     { to: `${basePath}/commissions`, label: 'Komissiya', icon: Percent, end: false },
+    ...(admin.type === 'general'
+      ? [{ to: `${basePath}/kurator-tolovlari`, label: 'Kurator to‘lovlari', icon: Banknote, end: false }]
+      : []),
     ...(admin.type === 'general'
       ? [{ to: `${basePath}/debts`, label: 'Qarzlar', icon: Wallet, end: false }]
       : []),

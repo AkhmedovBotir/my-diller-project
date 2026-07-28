@@ -10,9 +10,11 @@ import {
   LogOut,
   Menu,
   Package,
+  Percent,
   ShieldCheck,
   ShoppingCart,
   UserRound,
+  Wallet,
   X,
 } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -28,6 +30,8 @@ const TITLES: Array<[string, string]> = [
   ['/factories', 'Fabrikalar'],
   ['/orders', 'Buyurtmalar'],
   ['/documents', 'Hujjatlar'],
+  ['/earnings', 'Daromad'],
+  ['/komissiyalar', 'Komissiyalar'],
 ]
 
 export function AppShell() {
@@ -75,6 +79,8 @@ export function AppShell() {
     { to: '/orders', label: 'Buyurtmalar', icon: ShoppingCart, end: false },
     { to: '/documents', label: 'Hujjatlar', icon: FileText, end: false },
     { to: '/products', label: 'Mahsulotlar', icon: Package, end: false },
+    { to: '/earnings', label: 'Daromad', icon: Wallet, end: false },
+    { to: '/komissiyalar', label: 'Komissiyalar', icon: Percent, end: false },
     { to: '/notifications', label: 'Bildirishnomalar', icon: Bell, end: false },
   ]
 

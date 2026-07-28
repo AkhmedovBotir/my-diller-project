@@ -48,6 +48,7 @@ export interface Ishlabchiqaruvchi {
   stir: string
   bank_account: string
   bank_name: string
+  mfo: string
   address: string
   lat?: number | null
   lng?: number | null
@@ -66,6 +67,7 @@ export interface IshlabchiqaruvchiCreateInput {
   stir?: string
   bank_account?: string
   bank_name?: string
+  mfo?: string
   address?: string
 }
 
@@ -164,6 +166,7 @@ export interface Product {
   code: string
   ishlabchiqaruvchi_id: number
   name: string
+  city: string
   description: unknown
   category_id: number
   subcategory_id: number
@@ -183,11 +186,81 @@ export interface Product {
 }
 
 export interface ProductQuickEditInput {
+  city: string
   price: number
   quantity: number
   moq: number
   payment_term: PaymentTerm
   payment_days: number
+}
+
+// ---- Kurator daromadi va to'lov so'rovlari ----
+
+export type KuratorTolovStatus = 'pending' | 'paid' | 'rejected'
+
+export interface KuratorDaromad {
+  id: number
+  kurator_id: number
+  buyurtma_id: number
+  order_amount: number
+  percent: number
+  amount: number
+  created_at: string
+}
+
+export interface KuratorDaromadSummary {
+  balance: number
+  total_earned: number
+  total_withdrawn_pending: number
+  items: KuratorDaromad[]
+}
+
+export interface KuratorTolovSorovi {
+  id: number
+  kurator_id: number
+  amount: number
+  card_number: string
+  card_holder: string
+  note: string
+  status: KuratorTolovStatus
+  admin_note: string
+  processed_by?: number | null
+  processed_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateTolovSorovInput {
+  amount: number
+  card_number: string
+  card_holder: string
+  note?: string
+}
+
+// ---- Kurator ko'rinishidagi zavod komissiyalari ----
+
+export type KomissiyaStatus = 'pending' | 'submitted' | 'paid' | 'waived'
+
+export interface KuratorKomissiyaItem {
+  id: number
+  buyurtma_id: number
+  ishlabchiqaruvchi_id: number
+  company_name: string
+  order_amount: number
+  percent: number
+  amount: number
+  status: KomissiyaStatus
+  paid_at?: string | null
+  created_at: string
+}
+
+export interface PlatformSettingsLite {
+  id: number
+  commission_percent: number
+  curator_percent: number
+  free_promo_active: boolean
+  reserve_balance: number
+  updated_at: string
 }
 
 // ---- Bildirishnoma ----

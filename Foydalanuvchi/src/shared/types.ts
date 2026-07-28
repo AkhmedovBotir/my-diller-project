@@ -1,6 +1,6 @@
 export type PaymentTerm = 'prepay_100' | 'deferred' | 'pod_zakaz_50_50'
 
-export type PaymentPhase = 'none' | 'awaiting_advance' | 'awaiting_final' | 'completed'
+export type PaymentPhase = 'none' | 'awaiting_advance' | 'advance_done' | 'awaiting_final' | 'paid'
 
 export interface QuillDelta {
   ops: Array<{ insert?: string | Record<string, unknown>; attributes?: Record<string, unknown> }>
@@ -16,6 +16,7 @@ export interface Xaridor {
   stir: string
   bank_account: string
   bank_name: string
+  mfo: string
   address: string
   lat: number | null
   lng: number | null
@@ -34,6 +35,7 @@ export interface XaridorProfileInput {
   stir?: string
   bank_account?: string
   bank_name?: string
+  mfo?: string
   address?: string
   lat?: number | null
   lng?: number | null
@@ -50,6 +52,7 @@ export interface RegisterInput {
   stir?: string
   bank_account?: string
   bank_name?: string
+  mfo?: string
   address?: string
   lat?: number | null
   lng?: number | null
@@ -84,6 +87,7 @@ export interface Product {
   code: string
   ishlabchiqaruvchi_id: number
   name: string
+  city: string
   description: QuillDelta | string
   category_id: number
   subcategory_id: number
@@ -105,6 +109,7 @@ export interface Product {
 export type OrderStatus =
   | 'yangi'
   | 'qabul_qilindi'
+  | 'tayyor_tolov_kutilmoqda'
   | 'logistikaga_uzatildi'
   | 'yolda'
   | 'yetkazildi_tolov_kutilmoqda'
@@ -174,6 +179,14 @@ export interface CreateOrderItemInput {
 export interface CreateOrderInput {
   items: CreateOrderItemInput[]
   note?: string
+  agree_contract?: boolean
+}
+
+export interface ShartnomaResponse {
+  id: number
+  agreed_at?: string | null
+  contract_html: string
+  needs_agree: boolean
 }
 
 export interface Notification {

@@ -16,8 +16,10 @@ import {
   X,
 } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
+import { useAuth } from '../auth/AuthContext'
 import { CustomSelect } from '../../shared/CustomSelect'
 import { formatDateTime } from '../../shared/date'
+import { isProfileComplete } from '../../shared/profileComplete'
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_IMAGE_BYTES,
@@ -37,7 +39,9 @@ import type { Category, PaymentTerm, Product, ProductStatus, QuillDelta, Subcate
 type StatusFilter = ProductStatus | 'all'
 
 export function ProductsPage() {
+  const { user } = useAuth()
   const { showSnackbar } = useSnackbar()
+  const profileComplete = isProfileComplete(user)
   const [items, setItems] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
@@ -135,15 +139,31 @@ export function ProductsPage() {
             Yangi mahsulotlar pending holatida yaratiladi va admin tasdig‘ini kutadi
           </p>
         </div>
-        <motion.button
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setEditing('new')}
-          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#173c32] px-5 text-sm font-bold text-white shadow-lg shadow-[#173c32]/10"
-        >
-          <Plus size={18} />
-          Yangi mahsulot
-        </motion.button>
+        <div className="flex flex-col items-end gap-2">
+          <motion.button
+            whileHover={profileComplete ? { y: -1 } : undefined}
+            whileTap={profileComplete ? { scale: 0.98 } : undefined}
+            onClick={() => {
+              if (!profileComplete) {
+                showSnackbar('Mahsulot qo‘shishdan oldin profilni 100% to‘ldiring', 'error')
+                return
+              }
+              setEditing('new')
+            }}
+            disabled={!profileComplete}
+            title={!profileComplete ? 'Mahsulot qo‘shishdan oldin profilni 100% to‘ldiring' : undefined}
+            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#173c32] px-5 text-sm font-bold text-white shadow-lg shadow-[#173c32]/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus size={18} />
+            Yangi mahsulot
+          </motion.button>
+          {!profileComplete && (
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-600">
+              <AlertTriangle size={13} />
+              Avval profilni to‘ldiring
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
@@ -200,10 +220,11 @@ export function ProductsPage() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left">
+              <table className="w-full min-w-[1080px] text-left">
                 <thead>
                   <tr className="bg-slate-50/70 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     <th className="px-6 py-4">Mahsulot</th>
+                    <th className="px-4 py-4">Shahar</th>
                     <th className="px-4 py-4">Kategoriya</th>
                     <th className="px-4 py-4">Narx</th>
                     <th className="px-4 py-4">Soni</th>
@@ -238,6 +259,7 @@ export function ProductsPage() {
                           </div>
                         </div>
                       </td>
+                      <td className="px-4 py-4 text-sm text-slate-600">{item.city || '—'}</td>
                       <td className="px-4 py-4 text-sm text-slate-600">
                         <p className="font-medium text-slate-700">{categoryName(item.category_id)}</p>
                         <p className="mt-0.5 text-xs text-slate-400">{subcategoryName(item.subcategory_id)}</p>
@@ -389,6 +411,7 @@ function ViewModal({
 }) {
   const details = [
     { label: 'Kod', value: product.code },
+    { label: 'Shahar', value: product.city || '—' },
     { label: 'Kategoriya', value: categoryName },
     { label: 'Subkategoriya', value: subcategoryName },
     { label: 'Narx', value: formatPrice(product.price) },
@@ -505,6 +528,8 @@ function FormModal({
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
   const [name, setName] = useState(product?.name ?? '')
+  const [code, setCode] = useState(product?.code ?? '')
+  const [city, setCity] = useState(product?.city ?? '')
   const [description, setDescription] = useState<QuillDelta>(() => normalizeDelta(product?.description))
   const [categoryId, setCategoryId] = useState(String(product?.category_id ?? ''))
   const [subcategoryId, setSubcategoryId] = useState(String(product?.subcategory_id ?? ''))
@@ -608,9 +633,23 @@ function FormModal({
       return
     }
 
+    if (!code.trim()) {
+      setErrorField('code')
+      showSnackbar('Mahsulot kodi kiritilishi shart', 'error')
+      setSaving(false)
+      return
+    }
+
     if (isDeltaEmpty(description)) {
       setErrorField('description')
       showSnackbar('Tavsif kiritilishi shart', 'error')
+      setSaving(false)
+      return
+    }
+
+    if (!city.trim()) {
+      setErrorField('city')
+      showSnackbar('Shahar kiritilishi shart', 'error')
       setSaving(false)
       return
     }
@@ -642,6 +681,7 @@ function FormModal({
       )
       const payload = {
         name: name.trim(),
+        city: city.trim(),
         description: normalizeDelta(description),
         category_id: Number(categoryId),
         subcategory_id: Number(subcategoryId),
@@ -655,10 +695,10 @@ function FormModal({
       }
 
       if (product) {
-        await api.updateProduct(product.id, payload)
+        await api.updateProduct(product.id, { ...payload, code: code.trim() })
         showSnackbar('Mahsulot yangilandi va qayta ko‘rib chiqishga yuborildi')
       } else {
-        await api.createProduct({ ...payload, images })
+        await api.createProduct({ ...payload, code: code.trim(), images })
         showSnackbar('Mahsulot yaratildi')
       }
       onSaved()
@@ -701,6 +741,33 @@ function FormModal({
               }`}
             />
           </label>
+
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold text-slate-600">
+              Mahsulot kodi
+              <span className="ml-1 text-red-400">*</span>
+            </span>
+            <input
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              required
+              placeholder="Masalan: NQK-180 yoki COLA01"
+              maxLength={64}
+              className={`h-12 w-full rounded-xl border bg-slate-50/40 px-4 font-mono text-sm outline-none transition focus:bg-white focus:ring-4 ${
+                errorField === 'code'
+                  ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+                  : 'border-slate-200 focus:border-[#397461] focus:ring-[#397461]/8'
+              }`}
+            />
+          </label>
+
+          <Field
+            name="city"
+            label="Shahar"
+            value={city}
+            onChange={setCity}
+            invalid={errorField === 'city'}
+          />
 
           <div className="sm:col-span-2">
             <span className="mb-2 block text-xs font-bold text-slate-600">Tavsif</span>
@@ -913,7 +980,8 @@ function DeleteModal({
         </div>
         <h3 className="mt-5 text-lg font-bold">Mahsulotni o‘chirasizmi?</h3>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          <span className="font-semibold text-slate-600">{product.name}</span> ({product.code}) butunlay o‘chiriladi.
+          <span className="font-semibold text-slate-600">{product.name}</span> ({product.code}) mahsulotlar
+          ro‘yxatidan olib tashlanadi. Buyurtmalardagi ma’lumotlar saqlanib qoladi.
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <button

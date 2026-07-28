@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './app/AppShell'
 import { useAuth } from './modules/auth/AuthContext'
 import { LoginPage } from './modules/auth/LoginPage'
+import { RegisterPage } from './modules/auth/RegisterPage'
 import { CommissionsPage } from './modules/commissions/CommissionsPage'
 import { DashboardPage } from './modules/dashboard/DashboardPage'
 import { OrderDetailPage } from './modules/orders/OrderDetailPage'
@@ -56,6 +57,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
       <Route path="/" element={<ProtectedArea />}>
         <Route index element={<DashboardPage />} />

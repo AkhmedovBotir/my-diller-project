@@ -2,8 +2,6 @@ package product
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"strings"
 
 	"diller-backend/internal/pkg/upload"
@@ -29,24 +27,8 @@ func (s *Service) ensureCategoryLink(ctx context.Context, categoryID, subcategor
 	return nil
 }
 
-func (s *Service) uniqueCode(ctx context.Context) (string, error) {
-	for i := 0; i < 20; i++ {
-		code, err := GenerateCode()
-		if err != nil {
-			return "", err
-		}
-		exists, err := s.repo.CodeExists(ctx, code)
-		if err != nil {
-			return "", err
-		}
-		if !exists {
-			return code, nil
-		}
-	}
-	return "", fmt.Errorf("unikal mahsulot kodini yaratib bo'lmadi, qayta urinib ko'ring")
-}
-
 func (s *Service) CreateByManufacturer(ctx context.Context, ownerID int64, input CreateInput) (*Product, error) {
+	input.Code = strings.TrimSpace(input.Code)
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -54,24 +36,15 @@ func (s *Service) CreateByManufacturer(ctx context.Context, ownerID int64, input
 		return nil, err
 	}
 
-	code, err := s.uniqueCode(ctx)
+	exists, err := s.repo.CodeExists(ctx, input.Code, 0)
 	if err != nil {
 		return nil, err
+	}
+	if exists {
+		return nil, ErrCodeTaken
 	}
 
-	p, err := s.repo.Create(ctx, code, ownerID, input, StatusPending)
-	if err != nil {
-		if errors.Is(err, ErrCodeTaken) {
-			// juda kam uchraydigan race — qayta urinish
-			code, err = s.uniqueCode(ctx)
-			if err != nil {
-				return nil, err
-			}
-			return s.repo.Create(ctx, code, ownerID, input, StatusPending)
-		}
-		return nil, err
-	}
-	return p, nil
+	return s.repo.Create(ctx, input.Code, ownerID, input, StatusPending)
 }
 
 func (s *Service) ListByManufacturer(ctx context.Context, ownerID int64, status string, limit, offset int) ([]Product, error) {
@@ -94,6 +67,7 @@ func (s *Service) GetByManufacturer(ctx context.Context, ownerID, id int64) (*Pr
 }
 
 func (s *Service) UpdateByManufacturer(ctx context.Context, ownerID, id int64, input UpdateInput) (*Product, error) {
+	input.Code = strings.TrimSpace(input.Code)
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -104,6 +78,14 @@ func (s *Service) UpdateByManufacturer(ctx context.Context, ownerID, id int64, i
 	existing, err := s.GetByManufacturer(ctx, ownerID, id)
 	if err != nil {
 		return nil, err
+	}
+
+	exists, err := s.repo.CodeExists(ctx, input.Code, id)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrCodeTaken
 	}
 
 	images := existing.Images
@@ -135,18 +117,13 @@ func (s *Service) ResubmitByManufacturer(ctx context.Context, ownerID, id int64)
 }
 
 func (s *Service) DeleteByManufacturer(ctx context.Context, ownerID, id int64) error {
-	existing, err := s.GetByManufacturer(ctx, ownerID, id)
+	_, err := s.GetByManufacturer(ctx, ownerID, id)
 	if err != nil {
 		return err
 	}
-	if existing.Status == StatusApproved {
-		return validationError("status", "Tasdiqlangan mahsulotni o'chirib bo'lmaydi, admin bilan bog'laning")
-	}
-	if err := s.repo.Delete(ctx, id); err != nil {
-		return err
-	}
-	s.storage.RemoveByURLs(existing.Images)
-	return nil
+	// Tasdiqlangan yoki buyurtmadagi mahsulot ham soft-delete qilinadi —
+	// katalog/ro'yxatdan chiqadi, tarix saqlanadi.
+	return s.repo.SoftDelete(ctx, id)
 }
 
 func (s *Service) ListForAdmin(ctx context.Context, status string, limit, offset int) ([]Product, error) {
@@ -162,6 +139,7 @@ func (s *Service) GetForAdmin(ctx context.Context, id int64) (*Product, error) {
 }
 
 func (s *Service) UpdateByAdmin(ctx context.Context, id int64, input UpdateInput) (*Product, error) {
+	input.Code = strings.TrimSpace(input.Code)
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -172,6 +150,14 @@ func (s *Service) UpdateByAdmin(ctx context.Context, id int64, input UpdateInput
 	existing, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	exists, err := s.repo.CodeExists(ctx, input.Code, id)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrCodeTaken
 	}
 
 	images := existing.Images
@@ -226,13 +212,10 @@ func (s *Service) GetCatalog(ctx context.Context, id int64) (*Product, error) {
 }
 
 func (s *Service) DeleteByAdmin(ctx context.Context, id int64) error {
-	existing, err := s.repo.GetByID(ctx, id)
+	_, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
-	if err := s.repo.Delete(ctx, id); err != nil {
-		return err
-	}
-	s.storage.RemoveByURLs(existing.Images)
-	return nil
+	// Soft-delete: buyurtmalardagi ma'lumotlar saqlanadi, ro'yxatdan chiqadi.
+	return s.repo.SoftDelete(ctx, id)
 }

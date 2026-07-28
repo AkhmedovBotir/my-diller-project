@@ -12,6 +12,7 @@ import {
   Package,
   Receipt,
   Truck,
+  X,
 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../../shared/api'
@@ -32,6 +33,7 @@ export function OrderDetailPage() {
   const [acting, setActing] = useState(false)
   const [docTab, setDocTab] = useState<'contract' | 'invoice'>('contract')
   const [downloading, setDownloading] = useState<'contract' | 'invoice' | null>(null)
+  const [rejectTarget, setRejectTarget] = useState<'advance' | 'payment' | null>(null)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -59,6 +61,24 @@ export function OrderDetailPage() {
       showSnackbar(successMessage)
     } catch (actionError) {
       showSnackbar(getErrorMessage(actionError), 'error')
+    } finally {
+      setActing(false)
+    }
+  }
+
+  async function handleReject(note: string) {
+    if (!order || !rejectTarget) return
+    setActing(true)
+    try {
+      const updated =
+        rejectTarget === 'advance'
+          ? await api.rejectAdvanceReceipt(order.id, note || undefined)
+          : await api.rejectPaymentReceipt(order.id, note || undefined)
+      setOrder(updated)
+      showSnackbar('Kvitansiya rad etildi, xaridorga xabar yuborildi')
+      setRejectTarget(null)
+    } catch (rejectError) {
+      showSnackbar(getErrorMessage(rejectError), 'error')
     } finally {
       setActing(false)
     }
@@ -138,10 +158,33 @@ export function OrderDetailPage() {
       </div>
 
       {order.payment_phase === 'awaiting_advance' && (
-        <AdvanceCard order={order} acting={acting} runAction={runAction} />
+        <AdvanceCard
+          order={order}
+          acting={acting}
+          runAction={runAction}
+          onReject={() => setRejectTarget('advance')}
+        />
+      )}
+
+      {(order.status === 'tayyor_tolov_kutilmoqda' || order.status === 'yetkazildi_tolov_kutilmoqda') && (
+        <PaymentReceiptCard
+          order={order}
+          acting={acting}
+          runAction={runAction}
+          onReject={() => setRejectTarget('payment')}
+        />
       )}
 
       <ActionBar order={order} acting={acting} runAction={runAction} />
+
+      {rejectTarget && (
+        <RejectReasonModal
+          title={rejectTarget === 'advance' ? 'Avans kvitansiyasini rad etish' : 'To‘lov kvitansiyasini rad etish'}
+          acting={acting}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={handleReject}
+        />
+      )}
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
         <div className="space-y-5">
@@ -395,24 +438,6 @@ function ActionBar({
     )
   }
 
-  if (order.status === 'yetkazildi_tolov_kutilmoqda') {
-    return (
-      <ActionCard
-        icon={Receipt}
-        title="To‘lov kutilmoqda"
-        description={
-          order.payment_receipt_url
-            ? 'Xaridor to‘lov kvitansiyasini yukladi. Tekshirib tasdiqlang'
-            : 'Xaridor hali to‘lov kvitansiyasini yuklamagan'
-        }
-        buttonLabel="To‘lovni tasdiqlash"
-        acting={acting}
-        disabled={!order.payment_receipt_url}
-        onClick={() => runAction(() => api.confirmOrderPayment(order.id), 'To‘lov tasdiqlandi')}
-      />
-    )
-  }
-
   if (order.status === 'yakunlandi') {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
@@ -493,10 +518,12 @@ function AdvanceCard({
   order,
   acting,
   runAction,
+  onReject,
 }: {
   order: Order
   acting: boolean
   runAction: (action: () => Promise<Order>, successMessage: string) => Promise<void>
+  onReject: () => void
 }) {
   if (order.advance_confirmed_at) return null
 
@@ -528,7 +555,7 @@ function AdvanceCard({
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <a
           href={order.advance_receipt_url}
           target="_blank"
@@ -539,6 +566,14 @@ function AdvanceCard({
           Ko‘rish
         </a>
         <button
+          onClick={onReject}
+          disabled={acting}
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
+        >
+          <X size={16} />
+          Rad etish
+        </button>
+        <button
           onClick={() => runAction(() => api.confirmAdvance(order.id), 'Avans tasdiqlandi')}
           disabled={acting}
           className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#173c32] px-5 text-sm font-bold text-white shadow-lg shadow-[#173c32]/10 disabled:opacity-50"
@@ -548,6 +583,147 @@ function AdvanceCard({
         </button>
       </div>
     </motion.section>
+  )
+}
+
+function PaymentReceiptCard({
+  order,
+  acting,
+  runAction,
+  onReject,
+}: {
+  order: Order
+  acting: boolean
+  runAction: (action: () => Promise<Order>, successMessage: string) => Promise<void>
+  onReject: () => void
+}) {
+  const isSecondHalf = order.status === 'tayyor_tolov_kutilmoqda'
+  const confirmMessage = isSecondHalf
+    ? 'Yakuniy to‘lov tasdiqlandi, buyurtma logistikaga uzatildi'
+    : 'To‘lov tasdiqlandi, buyurtma yakunlandi'
+
+  if (!order.payment_receipt_url) {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-700">
+        <Receipt size={20} />
+        <p className="text-sm font-semibold">
+          {isSecondHalf
+            ? 'Mahsulot tayyor. Xaridorning yakuniy (2-50%) to‘lov kvitansiyasi kutilmoqda.'
+            : 'Buyurtma yetkazildi. Xaridorning to‘lov kvitansiyasi kutilmoqda.'}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="flex items-center gap-3">
+        <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#173c32] text-[#c9f560]">
+          <Receipt size={20} />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-slate-800">
+            {isSecondHalf ? 'Yakuniy (2-50%) to‘lov kvitansiyasi yuklandi' : 'To‘lov kvitansiyasi yuklandi'}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-400">Tekshirib tasdiqlang yoki rad eting</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href={order.payment_receipt_url}
+          target="_blank"
+          rel="noreferrer"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+        >
+          <Receipt size={16} />
+          Ko‘rish
+        </a>
+        <button
+          onClick={onReject}
+          disabled={acting}
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
+        >
+          <X size={16} />
+          Rad etish
+        </button>
+        <button
+          onClick={() => runAction(() => api.confirmOrderPayment(order.id), confirmMessage)}
+          disabled={acting}
+          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#173c32] px-5 text-sm font-bold text-white shadow-lg shadow-[#173c32]/10 disabled:opacity-50"
+        >
+          {acting && <LoaderCircle className="animate-spin" size={16} />}
+          To‘lovni tasdiqlash
+        </button>
+      </div>
+    </motion.section>
+  )
+}
+
+function RejectReasonModal({
+  title,
+  acting,
+  onClose,
+  onConfirm,
+}: {
+  title: string
+  acting: boolean
+  onClose: () => void
+  onConfirm: (note: string) => void
+}) {
+  const [note, setNote] = useState('')
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+    >
+      <button aria-label="Yopish" onClick={onClose} className="absolute inset-0 cursor-default" />
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+          <h3 className="font-bold">{title}</h3>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-6">
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold text-slate-600">
+              Sabab <span className="font-normal text-slate-400">(ixtiyoriy)</span>
+            </span>
+            <textarea
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              rows={3}
+              placeholder="Nima uchun rad etilmoqda..."
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm outline-none transition focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100"
+            />
+          </label>
+          <div className="mt-6 flex justify-end gap-2">
+            <button onClick={onClose} className="h-11 rounded-xl px-4 text-sm font-bold text-slate-500 hover:bg-slate-100">
+              Bekor qilish
+            </button>
+            <button
+              onClick={() => onConfirm(note.trim())}
+              disabled={acting}
+              className="flex h-11 items-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white disabled:opacity-60"
+            >
+              {acting && <LoaderCircle className="animate-spin" size={16} />}
+              Rad etish
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   )
 }
 

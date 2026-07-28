@@ -11,6 +11,7 @@ export function formatNumber(value: number) {
 export const orderStatusLabel: Record<OrderStatus, string> = {
   yangi: 'Yangi',
   qabul_qilindi: 'Qabul qilindi',
+  tayyor_tolov_kutilmoqda: 'Tayyor, to‘lov kutilmoqda',
   logistikaga_uzatildi: 'Logistikaga uzatildi',
   yolda: 'Yo‘lda',
   yetkazildi_tolov_kutilmoqda: 'Yetkazildi, to‘lov kutilmoqda',
@@ -22,6 +23,7 @@ export const orderStatusLabel: Record<OrderStatus, string> = {
 export const orderStatusStyle: Record<OrderStatus, string> = {
   yangi: 'bg-blue-50 text-blue-700',
   qabul_qilindi: 'bg-indigo-50 text-indigo-700',
+  tayyor_tolov_kutilmoqda: 'bg-purple-50 text-purple-700',
   logistikaga_uzatildi: 'bg-amber-50 text-amber-700',
   yolda: 'bg-orange-50 text-orange-700',
   yetkazildi_tolov_kutilmoqda: 'bg-purple-50 text-purple-700',
@@ -33,20 +35,23 @@ export const orderStatusStyle: Record<OrderStatus, string> = {
 export const paymentPhaseLabel: Record<PaymentPhase, string> = {
   none: 'To‘lov fazasi yo‘q',
   awaiting_advance: 'Avans kutilmoqda',
+  advance_done: 'Avans tasdiqlandi',
   awaiting_final: 'Yakuniy to‘lov kutilmoqda',
-  completed: 'To‘lov yakunlandi',
+  paid: 'To‘lov yakunlandi',
 }
 
 export const paymentPhaseStyle: Record<PaymentPhase, string> = {
   none: 'bg-slate-100 text-slate-500',
   awaiting_advance: 'bg-orange-50 text-orange-700',
+  advance_done: 'bg-sky-50 text-sky-700',
   awaiting_final: 'bg-purple-50 text-purple-700',
-  completed: 'bg-emerald-50 text-emerald-700',
+  paid: 'bg-emerald-50 text-emerald-700',
 }
 
 export const orderStatusDotStyle: Record<OrderStatus, string> = {
   yangi: 'bg-blue-500',
   qabul_qilindi: 'bg-indigo-500',
+  tayyor_tolov_kutilmoqda: 'bg-purple-500',
   logistikaga_uzatildi: 'bg-amber-500',
   yolda: 'bg-orange-500',
   yetkazildi_tolov_kutilmoqda: 'bg-purple-500',
@@ -69,6 +74,7 @@ export function paymentTermFull(term: PaymentTerm, days: number) {
 export const ORDER_STATUS_FLOW: OrderStatus[] = [
   'yangi',
   'qabul_qilindi',
+  'tayyor_tolov_kutilmoqda',
   'logistikaga_uzatildi',
   'yolda',
   'yetkazildi_tolov_kutilmoqda',

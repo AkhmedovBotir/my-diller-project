@@ -24,12 +24,14 @@ export const orderStatusStyle: Record<OrderStatus, string> = {
 
 export const commissionStatusLabel: Record<CommissionStatus, string> = {
   pending: 'Kutilmoqda',
+  submitted: 'Tekshirilmoqda',
   paid: 'To‘langan',
   waived: 'Bekor qilingan (promo)',
 }
 
 export const commissionStatusStyle: Record<CommissionStatus, string> = {
   pending: 'bg-amber-50 text-amber-700',
+  submitted: 'bg-blue-50 text-blue-700',
   paid: 'bg-emerald-50 text-emerald-700',
   waived: 'bg-slate-100 text-slate-500',
 }

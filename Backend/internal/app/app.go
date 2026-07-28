@@ -13,6 +13,7 @@ import (
 	"diller-backend/modules/category"
 	"diller-backend/modules/dostavka"
 	"diller-backend/modules/ishlabchiqaruvchi"
+	"diller-backend/modules/kurator"
 	"diller-backend/modules/notification"
 	"diller-backend/modules/order"
 	"diller-backend/modules/product"
@@ -53,11 +54,12 @@ func Run(cfg *config.Config) error {
 	notificationModule := notification.NewModule(pool, cfg.JWT.Secret)
 	orderModule := order.NewModule(pool, cfg.JWT.Secret, storage, notificationModule.Service)
 	go orderModule.Service.StartDeadlineWatcher(ctx)
+	kuratorModule := kurator.NewModule(pool, cfg.JWT.Secret, notificationModule.Service)
 
 	router := NewRouter(
 		cfg, storage,
 		adminModule, xaridorModule, dostavkaModule, ishlabChiqaruvchiModule, categoryModule, productModule,
-		orderModule, notificationModule,
+		orderModule, notificationModule, kuratorModule,
 	)
 
 	return httpserver.Start(cfg.HTTPPort, router)

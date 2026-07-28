@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  AlertTriangle,
   Building2,
   ChevronDown,
   LayoutDashboard,
@@ -15,6 +16,7 @@ import {
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../modules/auth/AuthContext'
 import { NotifSoundToggle } from '../shared/NotifSoundToggle'
+import { isProfileComplete } from '../shared/profileComplete'
 import { NotificationsBell } from './NotificationsBell'
 
 export function AppShell() {
@@ -220,6 +222,15 @@ export function AppShell() {
         </header>
 
         <main className="mx-auto max-w-[1480px] p-5 sm:p-8">
+          {!isProfileComplete(user) && (
+            <NavLink
+              to="/profile"
+              className="mb-5 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-sm font-semibold text-amber-800 transition hover:border-amber-300"
+            >
+              <AlertTriangle size={18} className="shrink-0" />
+              Mahsulot qo‘shishdan oldin profilni 100% to‘ldiring
+            </NavLink>
+          )}
           <motion.div
             key={pathname}
             initial={{ opacity: 0, y: 8 }}

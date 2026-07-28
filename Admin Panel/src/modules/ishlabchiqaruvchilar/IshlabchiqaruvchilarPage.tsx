@@ -278,6 +278,11 @@ function ViewModal({
     { label: 'Familiya', value: item.last_name },
     { label: 'Telefon', value: item.phone },
     { label: 'Foydalanuvchi nomi', value: `@${item.username}` },
+    { label: 'STIR', value: item.stir || '—' },
+    { label: 'Bank nomi', value: item.bank_name || '—' },
+    { label: 'MFO', value: item.mfo || '—' },
+    { label: 'Hisob raqami', value: item.bank_account || '—' },
+    { label: 'Manzil', value: item.address || '—' },
     { label: 'Kurator', value: kuratorName ?? 'Biriktirilmagan' },
     { label: 'Yaratilgan', value: formatDateTime(item.created_at) },
     { label: 'Yangilangan', value: formatDateTime(item.updated_at) },
@@ -361,6 +366,11 @@ function FormModal({
       phone: String(form.get('phone')),
       username: String(form.get('username')),
       password: String(form.get('password')),
+      stir: String(form.get('stir') || ''),
+      bank_name: String(form.get('bank_name') || ''),
+      bank_account: String(form.get('bank_account') || ''),
+      mfo: String(form.get('mfo') || ''),
+      address: String(form.get('address') || ''),
       kurator_id: kuratorRaw ? Number(kuratorRaw) : null,
     }
     if (item && !input.password) delete input.password
@@ -413,6 +423,23 @@ function FormModal({
             invalid={errorField === 'phone'}
           />
           <Field name="username" label="Login" defaultValue={item?.username} invalid={errorField === 'username'} />
+          <Field name="stir" label="STIR" required={false} defaultValue={item?.stir} invalid={errorField === 'stir'} />
+          <Field name="bank_name" label="Bank nomi" required={false} defaultValue={item?.bank_name} invalid={errorField === 'bank_name'} />
+          <Field name="mfo" label="MFO" required={false} defaultValue={item?.mfo} invalid={errorField === 'mfo'} />
+          <Field
+            name="bank_account"
+            label="Hisob raqami"
+            required={false}
+            defaultValue={item?.bank_account}
+            invalid={errorField === 'bank_account'}
+          />
+          <Field
+            name="address"
+            label="Manzil"
+            required={false}
+            defaultValue={item?.address}
+            invalid={errorField === 'address'}
+          />
           <label className="block">
             <span className="mb-2 block text-xs font-bold text-slate-600">Kurator</span>
             <select

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Eye, EyeOff, LoaderCircle, ShoppingBag } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { getErrorField, getErrorMessage } from '../../shared/api'
+import { LocationPicker } from '../../shared/LocationPicker'
 import { useSnackbar } from '../../shared/Snackbar'
 import { useAuth } from './AuthContext'
 
@@ -13,6 +14,9 @@ export function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [address, setAddress] = useState('')
+  const [lat, setLat] = useState<number | null>(null)
+  const [lng, setLng] = useState<number | null>(null)
 
   if (user) return <Navigate to="/" replace />
 
@@ -21,8 +25,6 @@ export function RegisterPage() {
     setErrorField(undefined)
     setSubmitting(true)
     const form = new FormData(event.currentTarget)
-    const lat = String(form.get('lat') ?? '').trim()
-    const lng = String(form.get('lng') ?? '').trim()
     try {
       const registeredUser = await register({
         shop_name: String(form.get('shop_name') ?? '').trim(),
@@ -34,9 +36,9 @@ export function RegisterPage() {
         stir: String(form.get('stir') ?? '').trim(),
         bank_account: String(form.get('bank_account') ?? '').trim(),
         bank_name: String(form.get('bank_name') ?? '').trim(),
-        address: String(form.get('address') ?? '').trim(),
-        lat: lat ? Number(lat) : undefined,
-        lng: lng ? Number(lng) : undefined,
+        mfo: String(form.get('mfo') ?? '').trim(),
+        address: address.trim(),
+        ...(lat != null && lng != null ? { lat, lng } : {}),
       })
       showSnackbar(`Xush kelibsiz, ${registeredUser.first_name}!`)
       navigate('/', { replace: true })
@@ -114,8 +116,8 @@ export function RegisterPage() {
                 Ro‘yxatdan o‘tish
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-500">
-                Barcha maydonlarni to‘ldiring. Rekvizit ma’lumotlarini keyinroq
-                profilda ham to‘ldirishingiz mumkin.
+                Asosiy maydonlarni to‘ldiring. Rekvizit va xaritani keyinroq
+                profilda ham to‘ldirishingiz mumkin — buyurtma uchun ular shart.
               </p>
             </div>
 
@@ -168,10 +170,41 @@ export function RegisterPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field name="stir" label="STIR" required={false} invalid={errorField === 'stir'} />
                   <Field name="bank_name" label="Bank nomi" required={false} invalid={errorField === 'bank_name'} />
-                  <Field name="bank_account" label="Hisob raqami" required={false} invalid={errorField === 'bank_account'} className="sm:col-span-2" />
-                  <Field name="address" label="Manzil" required={false} invalid={errorField === 'address'} className="sm:col-span-2" />
-                  <Field name="lat" label="Kenglik (lat)" required={false} type="number" step="any" invalid={errorField === 'lat'} />
-                  <Field name="lng" label="Uzunlik (lng)" required={false} type="number" step="any" invalid={errorField === 'lng'} />
+                  <Field name="mfo" label="MFO" required={false} invalid={errorField === 'mfo'} />
+                  <Field name="bank_account" label="Hisob raqami" required={false} invalid={errorField === 'bank_account'} />
+                </div>
+
+                <div className="mt-4">
+                  <LocationPicker
+                    lat={lat}
+                    lng={lng}
+                    onChange={({ lat: nextLat, lng: nextLng, address: nextAddress }) => {
+                      setLat(nextLat)
+                      setLng(nextLng)
+                      if (nextAddress) setAddress(nextAddress)
+                    }}
+                    className="mb-4"
+                  />
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-semibold text-slate-700">
+                      Manzil
+                      <span className="ml-1 font-normal text-slate-400">(ixtiyoriy)</span>
+                    </span>
+                    <input
+                      value={address}
+                      onChange={(event) => setAddress(event.target.value)}
+                      placeholder="Ko‘cha, uy, shahar..."
+                      className={`h-12 w-full rounded-xl border bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:ring-4 ${
+                        errorField === 'address'
+                          ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
+                          : 'border-slate-200 focus:border-[#397461] focus:ring-[#397461]/10'
+                      }`}
+                    />
+                  </label>
+                  <p className="mt-2 text-[11px] text-slate-400">
+                    Koordinatalar faqat xarita orqali tanlanadi. Buyurtma berishdan oldin
+                    manzil va xaritani to‘ldirish shart.
+                  </p>
                 </div>
               </div>
 
@@ -212,7 +245,6 @@ function Field({
   name,
   label,
   type = 'text',
-  step,
   required = true,
   invalid = false,
   className = '',
@@ -220,7 +252,6 @@ function Field({
   name: string
   label: string
   type?: string
-  step?: string
   required?: boolean
   invalid?: boolean
   className?: string
@@ -234,7 +265,6 @@ function Field({
       <input
         name={name}
         type={type}
-        step={step}
         required={required}
         className={`h-12 w-full rounded-xl border bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:ring-4 ${
           invalid

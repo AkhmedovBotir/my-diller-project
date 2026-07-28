@@ -6,3 +6,6 @@ export const CABINETS = {
   kurator: 'https://kurator.milliycrm.uz',
   admin: 'https://admin.milliycrm.uz',
 }
+
+/** Backend API manzili */
+export const API_URL = 'https://api.milliycrm.uz/api/v1'

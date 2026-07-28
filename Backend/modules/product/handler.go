@@ -58,7 +58,9 @@ func parseUpdateForm(r *http.Request, storage *upload.Storage) (UpdateInput, err
 		}
 
 		out := UpdateInput{
+			Code:          createLike.Code,
 			Name:          createLike.Name,
+			City:          createLike.City,
 			Description:   createLike.Description,
 			CategoryID:    createLike.CategoryID,
 			SubcategoryID: createLike.SubcategoryID,
@@ -83,7 +85,9 @@ func parseUpdateForm(r *http.Request, storage *upload.Storage) (UpdateInput, err
 	}
 
 	var body struct {
+		Code          string          `json:"code"`
 		Name          string          `json:"name"`
+		City          string          `json:"city"`
 		Description   json.RawMessage `json:"description"`
 		CategoryID    int64           `json:"category_id"`
 		SubcategoryID int64           `json:"subcategory_id"`
@@ -99,7 +103,9 @@ func parseUpdateForm(r *http.Request, storage *upload.Storage) (UpdateInput, err
 	}
 
 	return UpdateInput{
+		Code:          strings.TrimSpace(body.Code),
 		Name:          body.Name,
+		City:          body.City,
 		Description:   body.Description,
 		CategoryID:    body.CategoryID,
 		SubcategoryID: body.SubcategoryID,
@@ -114,6 +120,7 @@ func parseUpdateForm(r *http.Request, storage *upload.Storage) (UpdateInput, err
 
 func parseCommonFields(r *http.Request) (CreateInput, error) {
 	name := strings.TrimSpace(r.FormValue("name"))
+	city := strings.TrimSpace(r.FormValue("city"))
 	descRaw := strings.TrimSpace(r.FormValue("description"))
 	if descRaw == "" {
 		return CreateInput{}, validationError("description", "Tavsif (Delta) kiritilishi shart")
@@ -158,7 +165,9 @@ func parseCommonFields(r *http.Request) (CreateInput, error) {
 	}
 
 	return CreateInput{
+		Code:          strings.TrimSpace(r.FormValue("code")),
 		Name:          name,
+		City:          city,
 		Description:   desc,
 		CategoryID:    categoryID,
 		SubcategoryID: subcategoryID,
@@ -246,6 +255,8 @@ func (h *Handler) writeError(w http.ResponseWriter, err error) {
 		httputil.FieldError(w, http.StatusConflict, "code", err.Error())
 	case errors.Is(err, ErrCategory):
 		httputil.Error(w, http.StatusBadRequest, "Kategoriya yoki subkategoriya topilmadi")
+	case errors.Is(err, ErrInUse):
+		httputil.Error(w, http.StatusConflict, err.Error())
 	default:
 		slog.Error("Ichki xatolik yuz berdi", "xatolik", err)
 		httputil.Error(w, http.StatusInternalServerError, "Ichki server xatoligi yuz berdi")

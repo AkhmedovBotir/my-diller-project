@@ -7,6 +7,7 @@ import type {
   Order,
   Product,
   RegisterInput,
+  ShartnomaResponse,
   Subcategory,
   Xaridor,
   XaridorProfileInput,
@@ -161,6 +162,12 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  getShartnoma: (manufacturerId: number) =>
+    request<ShartnomaResponse>(`/xaridor/shartnomalar/${manufacturerId}`),
+
+  agreeShartnoma: (manufacturerId: number) =>
+    request<ShartnomaResponse>(`/xaridor/shartnomalar/${manufacturerId}/agree`, { method: 'POST' }),
+
   orders: (params?: { status?: string; limit?: number; offset?: number }) => {
     const query = new URLSearchParams()
     query.set('limit', String(params?.limit ?? 20))
@@ -220,4 +227,20 @@ export function getErrorMessage(error: unknown) {
 
 export function getErrorField(error: unknown) {
   return error instanceof ApiRequestError ? error.field : undefined
+}
+
+export function isXaridorProfileComplete(user: Xaridor | null | undefined) {
+  if (!user) return false
+  return (
+    Boolean(user.shop_name?.trim()) &&
+    Boolean(user.stir?.trim()) &&
+    Boolean(user.bank_account?.trim()) &&
+    Boolean(user.bank_name?.trim()) &&
+    Boolean(user.mfo?.trim()) &&
+    Boolean(user.address?.trim()) &&
+    user.lat != null &&
+    !Number.isNaN(Number(user.lat)) &&
+    user.lng != null &&
+    !Number.isNaN(Number(user.lng))
+  )
 }

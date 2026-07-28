@@ -26,16 +26,68 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResponse, 
 		return nil, err
 	}
 
+	// Username yoki telefon raqami orqali kirish — register'da username=phone
+	// bo'lgani uchun ikkisi ham ishlaydi, lekin admin tomonidan qo'lda
+	// yaratilgan hisoblarda username boshqacha bo'lishi mumkin.
 	item, err := s.repo.GetByUsername(ctx, input.Username)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return nil, ErrInvalidCredentials
+			item, err = s.repo.GetByPhone(ctx, input.Username)
 		}
-		return nil, err
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return nil, ErrInvalidCredentials
+			}
+			return nil, err
+		}
 	}
 
 	if bcrypt.CompareHashAndPassword([]byte(item.PasswordHash), []byte(input.Password)) != nil {
 		return nil, ErrInvalidCredentials
+	}
+
+	token, err := auth.GenerateToken(
+		s.jwtSecret,
+		s.jwtTTL,
+		item.ID,
+		auth.SubjectIshlabchiqaruvchi,
+		"",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("tokenni yaratib bo'lmadi: %w", err)
+	}
+
+	return &LoginResponse{Token: token, Ishlabchiqaruvchi: item}, nil
+}
+
+// Register ishlab chiqaruvchining o'zi ro'yxatdan o'tishi — username telefon
+// raqamidan (faqat raqamlar) olinadi, ism-familiya keyinroq profilda
+// to'ldiriladi.
+func (s *Service) Register(ctx context.Context, input RegisterInput) (*LoginResponse, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+
+	username := normalizePhoneDigits(input.Phone)
+	if username == "" {
+		return nil, validationError("phone", "Telefon raqami noto'g'ri")
+	}
+
+	hash, err := hashPassword(input.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	createInput := CreateInput{
+		CompanyName: input.CompanyName,
+		Phone:       input.Phone,
+		Username:    username,
+		Stir:        input.Stir,
+	}
+
+	item, err := s.repo.Create(ctx, createInput, hash)
+	if err != nil {
+		return nil, err
 	}
 
 	token, err := auth.GenerateToken(

@@ -11,7 +11,7 @@ import (
 )
 
 const columns = `id, shop_name, first_name, last_name, phone, username, password_hash,
-	stir, bank_account, bank_name, address, lat, lng, is_blocked, blocked_reason,
+	stir, bank_account, bank_name, mfo, address, lat, lng, is_blocked, blocked_reason,
 	created_at, updated_at`
 
 type Repository struct {
@@ -27,7 +27,7 @@ func scanRow(row pgx.Row) (*Xaridor, error) {
 	err := row.Scan(
 		&item.ID, &item.ShopName, &item.FirstName, &item.LastName,
 		&item.Phone, &item.Username, &item.PasswordHash,
-		&item.Stir, &item.BankAccount, &item.BankName, &item.Address,
+		&item.Stir, &item.BankAccount, &item.BankName, &item.MFO, &item.Address,
 		&item.Lat, &item.Lng, &item.IsBlocked, &item.BlockedReason,
 		&item.CreatedAt, &item.UpdatedAt,
 	)
@@ -51,14 +51,14 @@ func mapError(err error, action string) error {
 func (r *Repository) Create(ctx context.Context, input CreateInput, passwordHash string) (*Xaridor, error) {
 	query := fmt.Sprintf(`
 		INSERT INTO xaridorlar (shop_name, first_name, last_name, phone, username, password_hash,
-			stir, bank_account, bank_name, address, lat, lng)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			stir, bank_account, bank_name, mfo, address, lat, lng)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING %s`, columns)
 
 	item, err := scanRow(r.pool.QueryRow(ctx, query,
 		input.ShopName, input.FirstName, input.LastName,
 		input.Phone, input.Username, passwordHash,
-		input.Stir, input.BankAccount, input.BankName, input.Address,
+		input.Stir, input.BankAccount, input.BankName, input.MFO, input.Address,
 		input.Lat, input.Lng,
 	))
 	if err != nil {
@@ -113,15 +113,15 @@ func (r *Repository) Update(ctx context.Context, id int64, input UpdateInput, pa
 		UPDATE xaridorlar
 		SET shop_name = $1, first_name = $2, last_name = $3, phone = $4, username = $5,
 		    password_hash = COALESCE(NULLIF($6, ''), password_hash),
-		    stir = $7, bank_account = $8, bank_name = $9, address = $10, lat = $11, lng = $12,
+		    stir = $7, bank_account = $8, bank_name = $9, mfo = $10, address = $11, lat = $12, lng = $13,
 		    updated_at = now()
-		WHERE id = $13
+		WHERE id = $14
 		RETURNING %s`, columns)
 
 	item, err := scanRow(r.pool.QueryRow(ctx, query,
 		input.ShopName, input.FirstName, input.LastName,
 		input.Phone, input.Username, passwordHash,
-		input.Stir, input.BankAccount, input.BankName, input.Address, input.Lat, input.Lng,
+		input.Stir, input.BankAccount, input.BankName, input.MFO, input.Address, input.Lat, input.Lng,
 		id,
 	))
 	if err != nil {
@@ -135,15 +135,15 @@ func (r *Repository) UpdateProfile(ctx context.Context, id int64, input UpdatePr
 		UPDATE xaridorlar
 		SET shop_name = $1, first_name = $2, last_name = $3, phone = $4, username = $5,
 		    password_hash = COALESCE(NULLIF($6, ''), password_hash),
-		    stir = $7, bank_account = $8, bank_name = $9, address = $10, lat = $11, lng = $12,
+		    stir = $7, bank_account = $8, bank_name = $9, mfo = $10, address = $11, lat = $12, lng = $13,
 		    updated_at = now()
-		WHERE id = $13
+		WHERE id = $14
 		RETURNING %s`, columns)
 
 	item, err := scanRow(r.pool.QueryRow(ctx, query,
 		input.ShopName, input.FirstName, input.LastName,
 		input.Phone, input.Username, passwordHash,
-		input.Stir, input.BankAccount, input.BankName, input.Address, input.Lat, input.Lng,
+		input.Stir, input.BankAccount, input.BankName, input.MFO, input.Address, input.Lat, input.Lng,
 		id,
 	))
 	if err != nil {
@@ -175,7 +175,7 @@ func (r *Repository) Unblock(ctx context.Context, id int64) (*Xaridor, error) {
 
 	item, err := scanRow(r.pool.QueryRow(ctx, query, id))
 	if err != nil {
-		return nil, mapError(err, "xaridorni blokdan chiqarib bo'lmadi")
+		return nil, mapError(err, "xaridor blokini olib bo'lmadi")
 	}
 	return item, nil
 }

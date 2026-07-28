@@ -158,7 +158,9 @@ export function FactoriesPage() {
                   <div className="flex items-center gap-2 text-xs text-slate-600">
                     <Landmark size={13} className="shrink-0 text-slate-400" />
                     <span className="truncate">
-                      {item.bank_name || '—'} {item.bank_account ? `· ${item.bank_account}` : ''}
+                      {item.bank_name || '—'}
+                      {item.mfo ? ` · MFO ${item.mfo}` : ''}
+                      {item.bank_account ? ` · ${item.bank_account}` : ''}
                     </span>
                   </div>
                 )}
@@ -208,6 +210,7 @@ function CreateFactoryModal({ onClose, onCreated }: { onClose: () => void; onCre
       stir: String(form.get('stir') || ''),
       bank_account: String(form.get('bank_account') || ''),
       bank_name: String(form.get('bank_name') || ''),
+      mfo: String(form.get('mfo') || ''),
       address: String(form.get('address') || ''),
     }
     try {
@@ -265,6 +268,7 @@ function CreateFactoryModal({ onClose, onCreated }: { onClose: () => void; onCre
             <FormField name="password" label="Parol" type="password" placeholder="Kamida 6 ta belgi" invalid={errorField === 'password'} />
             <FormField name="stir" label="STIR" required={false} invalid={errorField === 'stir'} />
             <FormField name="bank_name" label="Bank nomi" required={false} invalid={errorField === 'bank_name'} />
+            <FormField name="mfo" label="MFO" required={false} invalid={errorField === 'mfo'} />
             <FormField name="bank_account" label="Hisob raqami" required={false} invalid={errorField === 'bank_account'} />
             <FormField name="address" label="Manzil" required={false} invalid={errorField === 'address'} className="sm:col-span-2" />
           </div>

@@ -9,6 +9,7 @@ import { DashboardPage } from './modules/dashboard/DashboardPage'
 import { DebtsPage } from './modules/debts/DebtsPage'
 import { DostavkaPage } from './modules/dostavka/DostavkaPage'
 import { IshlabchiqaruvchilarPage } from './modules/ishlabchiqaruvchilar/IshlabchiqaruvchilarPage'
+import { KuratorTolovSorovlariPage } from './modules/kuratorTolovSorovlari/KuratorTolovSorovlariPage'
 import { OrderDetailPage } from './modules/orders/OrderDetailPage'
 import { OrdersPage } from './modules/orders/OrdersPage'
 import { ProductsPage } from './modules/products/ProductsPage'
@@ -77,6 +78,7 @@ export default function App() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="commissions" element={<CommissionsPage />} />
+        <Route path="kurator-tolovlari" element={<KuratorTolovSorovlariPage />} />
         <Route path="debts" element={<DebtsPage />} />
         <Route path="settings" element={<PlatformSettingsPage />} />
         <Route path="profile" element={<ProfilePage />} />

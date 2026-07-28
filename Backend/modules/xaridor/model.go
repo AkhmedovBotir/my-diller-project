@@ -31,6 +31,23 @@ func validationError(field, message string) error {
 	return &ValidationError{Field: field, Message: message}
 }
 
+// ValidateMFO O'zbekiston bank MFO kodi (5 raqam).
+func ValidateMFO(mfo string) error {
+	mfo = strings.TrimSpace(mfo)
+	if mfo == "" {
+		return validationError("mfo", "MFO kiritilishi shart")
+	}
+	if len(mfo) != 5 {
+		return validationError("mfo", "MFO 5 ta raqamdan iborat bo'lishi kerak")
+	}
+	for _, r := range mfo {
+		if r < '0' || r > '9' {
+			return validationError("mfo", "MFO faqat raqamlardan iborat bo'lishi kerak")
+		}
+	}
+	return nil
+}
+
 type Xaridor struct {
 	ID            int64     `json:"id"`
 	ShopName      string    `json:"shop_name"`
@@ -42,6 +59,7 @@ type Xaridor struct {
 	Stir          string    `json:"stir"`
 	BankAccount   string    `json:"bank_account"`
 	BankName      string    `json:"bank_name"`
+	MFO           string    `json:"mfo"`
 	Address       string    `json:"address"`
 	Lat           *float64  `json:"lat,omitempty"`
 	Lng           *float64  `json:"lng,omitempty"`
@@ -81,6 +99,7 @@ type CreateInput struct {
 	Stir        string   `json:"stir,omitempty"`
 	BankAccount string   `json:"bank_account,omitempty"`
 	BankName    string   `json:"bank_name,omitempty"`
+	MFO         string   `json:"mfo,omitempty"`
 	Address     string   `json:"address,omitempty"`
 	Lat         *float64 `json:"lat,omitempty"`
 	Lng         *float64 `json:"lng,omitempty"`
@@ -117,6 +136,7 @@ type UpdateInput struct {
 	Stir        string   `json:"stir"`
 	BankAccount string   `json:"bank_account"`
 	BankName    string   `json:"bank_name"`
+	MFO         string   `json:"mfo"`
 	Address     string   `json:"address"`
 	Lat         *float64 `json:"lat,omitempty"`
 	Lng         *float64 `json:"lng,omitempty"`
@@ -155,6 +175,7 @@ type UpdateProfileInput struct {
 	Stir        string   `json:"stir"`
 	BankAccount string   `json:"bank_account"`
 	BankName    string   `json:"bank_name"`
+	MFO         string   `json:"mfo"`
 	Address     string   `json:"address"`
 	Lat         *float64 `json:"lat,omitempty"`
 	Lng         *float64 `json:"lng,omitempty"`
@@ -177,6 +198,27 @@ func (i UpdateProfileInput) Validate() error {
 	}
 	if strings.TrimSpace(i.Username) == "" {
 		return validationError("username", "Foydalanuvchi nomi kiritilishi shart")
+	}
+	if strings.TrimSpace(i.Stir) == "" {
+		return validationError("stir", "STIR kiritilishi shart")
+	}
+	if strings.TrimSpace(i.BankName) == "" {
+		return validationError("bank_name", "Bank nomi kiritilishi shart")
+	}
+	if strings.TrimSpace(i.BankAccount) == "" {
+		return validationError("bank_account", "Hisob raqami kiritilishi shart")
+	}
+	if err := ValidateMFO(i.MFO); err != nil {
+		return err
+	}
+	if strings.TrimSpace(i.Address) == "" {
+		return validationError("address", "Manzil kiritilishi shart")
+	}
+	if i.Lat == nil {
+		return validationError("lat", "Xaritadan joylashuvni tanlang")
+	}
+	if i.Lng == nil {
+		return validationError("lng", "Xaritadan joylashuvni tanlang")
 	}
 	if i.Password != "" && len(i.Password) < 6 {
 		return validationError("password", "Parol kamida 6 ta belgidan iborat bo'lishi kerak")

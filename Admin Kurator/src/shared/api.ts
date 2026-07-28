@@ -1,13 +1,19 @@
 import type {
   AdminProfileInput,
   ApiError,
+  CreateTolovSorovInput,
   Hujjat,
   Ishlabchiqaruvchi,
   IshlabchiqaruvchiCreateInput,
+  KomissiyaStatus,
+  KuratorDaromadSummary,
+  KuratorKomissiyaItem,
+  KuratorTolovSorovi,
   LoginResponse,
   Notification,
   Order,
   OrderStatus,
+  PlatformSettingsLite,
   Product,
   ProductStatus,
 } from './types'
@@ -117,6 +123,7 @@ function toQuery(params: Record<string, string | number | undefined>) {
 
 export interface ProductUpdatePayload {
   name: string
+  city: string
   description: unknown
   category_id: number
   subcategory_id: number
@@ -194,6 +201,29 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
+
+  // ---- Kurator: daromad va kartaga pul yechish so'rovlari ----
+  kuratorDaromad: () => request<KuratorDaromadSummary>('/kurator/daromad'),
+
+  kuratorTolovSorovlari: () => request<KuratorTolovSorovi[]>('/kurator/tolov-sorovlari'),
+
+  createTolovSorov: (input: CreateTolovSorovInput) =>
+    request<KuratorTolovSorovi>('/kurator/tolov-sorovlari', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  // ---- Kurator: o'ziga biriktirilgan zavodlarning komissiyalari ----
+  kuratorKomissiyalar: (params?: { status?: KomissiyaStatus | ''; limit?: number; offset?: number }) =>
+    request<KuratorKomissiyaItem[]>(
+      `/kurator/komissiyalar${toQuery({
+        limit: params?.limit ?? 50,
+        offset: params?.offset ?? 0,
+      })}`,
+    ),
+
+  // ---- Platforma sozlamalari (faqat o'qish, komissiya foizini ko'rsatish uchun) ----
+  platformSettings: () => request<PlatformSettingsLite>('/admin/platform-settings'),
 
   // ---- Bildirishnomalar ----
   notifications: (limit = 50, offset = 0) =>

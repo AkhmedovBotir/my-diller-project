@@ -8,27 +8,36 @@ import {
   type ReactNode,
 } from 'react'
 import { api, tokenStorage } from '../../shared/api'
-import type { Ishlabchiqaruvchi } from '../../shared/types'
+import { isProfileComplete } from '../../shared/profileComplete'
+import type { IshlabchiqaruvchiProfile, RegisterInput } from '../../shared/types'
+
+function withProfileFlag(profile: IshlabchiqaruvchiProfile): IshlabchiqaruvchiProfile {
+  return {
+    ...profile,
+    profile_complete: isProfileComplete(profile),
+  }
+}
 
 interface AuthContextValue {
-  user: Ishlabchiqaruvchi | null
+  user: IshlabchiqaruvchiProfile | null
   loading: boolean
-  login: (username: string, password: string) => Promise<Ishlabchiqaruvchi>
+  login: (username: string, password: string) => Promise<IshlabchiqaruvchiProfile>
+  register: (input: RegisterInput) => Promise<IshlabchiqaruvchiProfile>
   logout: () => void
-  setUser: (user: Ishlabchiqaruvchi) => void
+  setUser: (user: IshlabchiqaruvchiProfile) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Ishlabchiqaruvchi | null>(null)
+  const [user, setUser] = useState<IshlabchiqaruvchiProfile | null>(null)
   const [loading, setLoading] = useState(Boolean(tokenStorage.get()))
 
   useEffect(() => {
     if (!tokenStorage.get()) return
 
     api.profile()
-      .then(setUser)
+      .then((profile) => setUser(withProfileFlag(profile)))
       .catch(() => tokenStorage.remove())
       .finally(() => setLoading(false))
   }, [])
@@ -42,8 +51,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     const result = await api.login(username, password)
     tokenStorage.set(result.token)
-    setUser(result.ishlabchiqaruvchi)
-    return result.ishlabchiqaruvchi
+    const profile = withProfileFlag(await api.profile())
+    setUser(profile)
+    return profile
+  }, [])
+
+  const register = useCallback(async (input: RegisterInput) => {
+    const result = await api.register(input)
+    tokenStorage.set(result.token)
+    const profile = withProfileFlag(await api.profile())
+    setUser(profile)
+    return profile
   }, [])
 
   const logout = useCallback(() => {
@@ -51,9 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const applyUser = useCallback((next: IshlabchiqaruvchiProfile) => {
+    setUser(withProfileFlag(next))
+  }, [])
+
   const value = useMemo(
-    () => ({ user, loading, login, logout, setUser }),
-    [user, loading, login, logout],
+    () => ({ user, loading, login, register, logout, setUser: applyUser }),
+    [user, loading, login, register, logout, applyUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -31,6 +31,7 @@ func NewModule(pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration) *Modu
 func (m *Module) RegisterRoutes(r chi.Router) {
 	r.Route("/ishlabchiqaruvchi", func(r chi.Router) {
 		r.Post("/auth/login", m.handler.Login)
+		r.Post("/auth/register", m.handler.Register)
 
 		// Ishlab chiqaruvchi o'z profili
 		r.Group(func(r chi.Router) {

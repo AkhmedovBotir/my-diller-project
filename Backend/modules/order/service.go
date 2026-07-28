@@ -105,6 +105,9 @@ func (s *Service) CreateOrder(ctx context.Context, xaridorID int64, input Create
 	if buyer.IsBlocked {
 		return nil, ErrXaridorBlocked
 	}
+	if !buyer.ProfileComplete() {
+		return nil, validationError("profile", "Buyurtma berishdan oldin profilingizni (do'kon nomi, STIR, hisob raqami, bank, manzil va joylashuv) to'liq to'ldiring")
+	}
 
 	// Bir xil mahsulot bir necha marta yuborilgan bo'lsa, miqdorlarni jamlaymiz.
 	quantityByProduct := make(map[int64]int)
@@ -184,6 +187,23 @@ func (s *Service) CreateOrder(ctx context.Context, xaridorID int64, input Create
 	if err != nil {
 		return nil, err
 	}
+	if !manufacturer.ProfileComplete() {
+		return nil, validationError("profile", "Ishlab chiqaruvchi profili to'liq to'ldirilmagan, buyurtma berish mumkin emas")
+	}
+
+	generalContractHTML := BuildContractHTML(&Order{Number: "UMUMIY"}, nil, manufacturer, buyer, "")
+	shartnoma, err := s.repo.getOrCreateShartnoma(ctx, tx, xaridorID, manufacturerID, generalContractHTML)
+	if err != nil {
+		return nil, err
+	}
+	if shartnoma.AgreedAt == nil {
+		if !input.AgreeContract {
+			return nil, ErrContractNotAgreed
+		}
+		if _, err := s.repo.agreeShartnoma(ctx, tx, shartnoma.ID); err != nil {
+			return nil, err
+		}
+	}
 
 	number, err := s.uniqueOrderNumber(ctx)
 	if err != nil {
@@ -262,6 +282,56 @@ func (s *Service) CreateOrder(ctx context.Context, xaridorID int64, input Create
 	return created, nil
 }
 
+// ---- Xaridor: shartnoma (xaridor-zavod umumiy shartnomasi) ----
+
+// GetShartnomaForXaridor mavjud shartnomani qaytaradi, mavjud bo'lmasa
+// yangi (tasdiqlanmagan) shartnoma yaratadi.
+func (s *Service) GetShartnomaForXaridor(ctx context.Context, xaridorID, manufacturerID int64) (*ShartnomaResponse, error) {
+	buyer, err := s.repo.getBuyer(ctx, s.repo.pool, xaridorID)
+	if err != nil {
+		return nil, err
+	}
+	manufacturer, err := s.repo.getManufacturer(ctx, s.repo.pool, manufacturerID)
+	if err != nil {
+		return nil, err
+	}
+
+	html := BuildContractHTML(&Order{Number: "UMUMIY"}, nil, manufacturer, buyer, "")
+	sh, err := s.repo.getOrCreateShartnoma(ctx, s.repo.pool, xaridorID, manufacturerID, html)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ShartnomaResponse{
+		ID:           sh.ID,
+		AgreedAt:     sh.AgreedAt,
+		ContractHTML: sh.ContractHTML,
+		NeedsAgree:   sh.AgreedAt == nil,
+	}, nil
+}
+
+// AgreeShartnomaForXaridor xaridor tomonidan umumiy shartnomani tasdiqlaydi.
+func (s *Service) AgreeShartnomaForXaridor(ctx context.Context, xaridorID, manufacturerID int64) (*ShartnomaResponse, error) {
+	sh, err := s.repo.getShartnomaByPair(ctx, s.repo.pool, xaridorID, manufacturerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if sh.AgreedAt == nil {
+		sh, err = s.repo.agreeShartnoma(ctx, s.repo.pool, sh.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &ShartnomaResponse{
+		ID:           sh.ID,
+		AgreedAt:     sh.AgreedAt,
+		ContractHTML: sh.ContractHTML,
+		NeedsAgree:   sh.AgreedAt == nil,
+	}, nil
+}
+
 // ---- Xaridor: ko'rish va amallar ----
 
 func (s *Service) ListByXaridor(ctx context.Context, xaridorID int64, status string, limit, offset int) ([]Order, error) {
@@ -311,14 +381,55 @@ func (s *Service) ReceiveByXaridor(ctx context.Context, xaridorID, id int64) (*O
 		return nil, ErrBadStatus
 	}
 
+	phase := nextPhaseOnReceive(existing)
+
+	// pod_zakaz_50_50: ikkinchi (yakuniy) to'lov yetkazishdan oldin
+	// allaqachon tasdiqlangan bo'lsa, qabul qilish bilan birga buyurtma
+	// darhol yakunlanadi — qo'shimcha to'lov muddati kerak emas.
+	if phase == PaymentPhasePaid {
+		tx, err := s.repo.Begin(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("tranzaksiyani boshlab bo'lmadi: %w", err)
+		}
+		defer tx.Rollback(ctx)
+
+		updated, err := s.repo.receiveAndClose(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := s.closeOrderWithCommission(ctx, tx, updated); err != nil {
+			return nil, err
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("tranzaksiyani yakunlab bo'lmadi: %w", err)
+		}
+
+		updated.Items, _ = s.repo.loadItems(ctx, s.repo.pool, updated.ID)
+		return updated, nil
+	}
+
 	days := existing.PaymentDays
 	if days < 1 {
 		days = 1
 	}
 	deadline := time.Now().AddDate(0, 0, days)
-	phase := nextPhaseOnReceive(existing)
 
-	return s.repo.receive(ctx, id, deadline, phase)
+	return s.repo.receive(ctx, id, &deadline, phase)
+}
+
+// AgreeInvoiceByXaridor xaridor tomonidan hisob-fakturani alohida
+// tasdiqlashi uchun (odatda receive bilan birga avtomatik belgilanadi).
+func (s *Service) AgreeInvoiceByXaridor(ctx context.Context, xaridorID, id int64) (*Order, error) {
+	existing, err := s.GetByXaridor(ctx, xaridorID, id)
+	if err != nil {
+		return nil, err
+	}
+	if existing.InvoiceAgreedAt != nil {
+		return existing, nil
+	}
+	return s.repo.agreeInvoice(ctx, id)
 }
 
 // UploadReceiptByXaridor to'lov kvitansiyasini upload.Storage orqali saqlaydi.
@@ -327,7 +438,8 @@ func (s *Service) UploadReceiptByXaridor(ctx context.Context, xaridorID, id int6
 	if err != nil {
 		return nil, err
 	}
-	if existing.Status != StatusYetkazildiTolovKutilmoqda {
+	awaitingPodZakazFinal := existing.Status == StatusTayyorTolovKutilmoqda && existing.PaymentPhase == PaymentPhaseAwaitingFinal
+	if existing.Status != StatusYetkazildiTolovKutilmoqda && !awaitingPodZakazFinal {
 		return nil, ErrBadStatus
 	}
 
@@ -434,6 +546,62 @@ func (s *Service) ConfirmAdvanceByManufacturer(ctx context.Context, ownerID, id 
 	return updated, nil
 }
 
+// RejectAdvanceReceiptByManufacturer ishlab chiqaruvchi xaridor yuklagan
+// avans kvitansiyasini rad etadi — xaridor qaytadan yuklashi kerak bo'ladi.
+func (s *Service) RejectAdvanceReceiptByManufacturer(ctx context.Context, ownerID, id int64, note string) (*Order, error) {
+	existing, err := s.GetByManufacturer(ctx, ownerID, id)
+	if err != nil {
+		return nil, err
+	}
+	if existing.PaymentPhase != PaymentPhaseAwaitingAdvance {
+		return nil, ErrBadStatus
+	}
+	if existing.AdvanceReceiptURL == "" {
+		return nil, ErrReceiptRequired
+	}
+
+	updated, err := s.repo.clearAdvanceReceiptURL(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	s.notify(ctx, recipientXaridor, updated.XaridorID,
+		"Avans kvitansiyasi rad etildi",
+		fmt.Sprintf("%s raqamli buyurtma bo'yicha avans kvitansiyasi rad etildi%s. Iltimos, qaytadan yuklang", updated.Number, noteSuffix(note)),
+		fmt.Sprintf("/xaridor/buyurtmalar/%d", updated.ID),
+	)
+
+	return updated, nil
+}
+
+// RejectPaymentReceiptByManufacturer ishlab chiqaruvchi xaridor yuklagan
+// to'lov (yakuniy) kvitansiyasini rad etadi.
+func (s *Service) RejectPaymentReceiptByManufacturer(ctx context.Context, ownerID, id int64, note string) (*Order, error) {
+	existing, err := s.GetByManufacturer(ctx, ownerID, id)
+	if err != nil {
+		return nil, err
+	}
+	if existing.Status != StatusYetkazildiTolovKutilmoqda && existing.Status != StatusTayyorTolovKutilmoqda {
+		return nil, ErrBadStatus
+	}
+	if existing.PaymentReceiptURL == "" {
+		return nil, ErrReceiptRequired
+	}
+
+	updated, err := s.repo.clearPaymentReceiptURL(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	s.notify(ctx, recipientXaridor, updated.XaridorID,
+		"To'lov kvitansiyasi rad etildi",
+		fmt.Sprintf("%s raqamli buyurtma bo'yicha to'lov kvitansiyasi rad etildi%s. Iltimos, qaytadan to'lab, kvitansiya yuklang", updated.Number, noteSuffix(note)),
+		fmt.Sprintf("/xaridor/buyurtmalar/%d", updated.ID),
+	)
+
+	return updated, nil
+}
+
 func (s *Service) ReadyByManufacturer(ctx context.Context, ownerID, id int64, input ReadyInput) (*Order, error) {
 	if err := input.Validate(); err != nil {
 		return nil, err
@@ -444,6 +612,15 @@ func (s *Service) ReadyByManufacturer(ctx context.Context, ownerID, id int64, in
 	}
 	if existing.Status != StatusQabulQilindi {
 		return nil, ErrBadStatus
+	}
+
+	// pod_zakaz_50_50: mahsulot tayyor, lekin xaridordan yakuniy (ikkinchi)
+	// to'lov tasdiqlanmaguncha logistikaga uzatilmaydi.
+	if existing.PaymentTerm == PaymentTermPodZakaz5050 {
+		if existing.PaymentPhase != PaymentPhaseAdvanceDone {
+			return nil, ErrAdvanceRequired
+		}
+		return s.repo.setReadyAwaitingFinalPayment(ctx, id)
 	}
 
 	dostavkaID := int64(0)
@@ -476,31 +653,68 @@ func (s *Service) ConfirmPaymentByManufacturer(ctx context.Context, ownerID, id 
 	if err != nil {
 		return nil, err
 	}
-	if existing.Status != StatusYetkazildiTolovKutilmoqda {
+
+	switch existing.Status {
+	case StatusTayyorTolovKutilmoqda:
+		// pod_zakaz_50_50: ikkinchi (yakuniy) to'lov tasdiqlandi — endi
+		// buyurtma logistikaga uzatiladi, lekin hali yakunlanmaydi.
+		if existing.PaymentReceiptURL == "" {
+			return nil, ErrReceiptRequired
+		}
+
+		tx, err := s.repo.Begin(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("tranzaksiyani boshlab bo'lmadi: %w", err)
+		}
+		defer tx.Rollback(ctx)
+
+		dostavkaID, err := s.repo.getOldestDostavkaID(ctx, tx)
+		if err != nil {
+			return nil, err
+		}
+
+		updated, err := s.repo.confirmFinalAndSendToLogistics(ctx, tx, id, dostavkaID)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("tranzaksiyani yakunlab bo'lmadi: %w", err)
+		}
+
+		updated.Items, _ = s.repo.loadItems(ctx, s.repo.pool, updated.ID)
+		return updated, nil
+
+	case StatusYetkazildiTolovKutilmoqda:
+		if existing.PaymentReceiptURL == "" {
+			return nil, ErrReceiptRequired
+		}
+
+		tx, err := s.repo.Begin(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("tranzaksiyani boshlab bo'lmadi: %w", err)
+		}
+		defer tx.Rollback(ctx)
+
+		updated, err := s.repo.confirmPayment(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := s.closeOrderWithCommission(ctx, tx, updated); err != nil {
+			return nil, err
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("tranzaksiyani yakunlab bo'lmadi: %w", err)
+		}
+
+		updated.Items, _ = s.repo.loadItems(ctx, s.repo.pool, updated.ID)
+		return updated, nil
+
+	default:
 		return nil, ErrBadStatus
 	}
-
-	tx, err := s.repo.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("tranzaksiyani boshlab bo'lmadi: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	updated, err := s.repo.confirmPayment(ctx, tx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err := s.closeOrderWithCommission(ctx, tx, updated); err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("tranzaksiyani yakunlab bo'lmadi: %w", err)
-	}
-
-	updated.Items, _ = s.repo.loadItems(ctx, s.repo.pool, updated.ID)
-	return updated, nil
 }
 
 // closeOrderWithCommission platform_settings asosida komissiya yaratadi:
@@ -533,7 +747,27 @@ func (s *Service) closeOrderWithCommission(ctx context.Context, q querier, o *Or
 	}
 	c.InvoiceHTML = BuildCommissionInvoiceHTML(&c, o, manufacturer)
 
-	return s.repo.createCommission(ctx, q, c)
+	created, err := s.repo.createCommission(ctx, q, c)
+	if err != nil {
+		return nil, err
+	}
+
+	if o.KuratorID != nil {
+		amount := o.TotalAmount * settings.CuratorPercent / 100
+		if err := s.repo.createKuratorDaromad(ctx, q, *o.KuratorID, o.ID, o.TotalAmount, settings.CuratorPercent, amount); err != nil {
+			return nil, err
+		}
+	}
+
+	return created, nil
+}
+
+// noteSuffix ixtiyoriy izohni bildirishnoma matniga qo'shish uchun formatlaydi.
+func noteSuffix(note string) string {
+	if note == "" {
+		return ""
+	}
+	return fmt.Sprintf(" (izoh: %s)", note)
 }
 
 // ---- Dostavka ----
@@ -720,6 +954,9 @@ func (s *Service) GetCommissionByManufacturer(ctx context.Context, ownerID, id i
 	return c, nil
 }
 
+// UploadCommissionReceiptByManufacturer ishlab chiqaruvchi komissiya
+// to'lovini amalga oshirib, kvitansiya yuklaganda komissiyani "submitted"
+// holatiga o'tkazadi — yakuniy tasdiqni faqat admin beradi.
 func (s *Service) UploadCommissionReceiptByManufacturer(ctx context.Context, ownerID, id int64, file *multipart.FileHeader) (*Commission, error) {
 	c, err := s.repo.GetCommissionByID(ctx, id)
 	if err != nil {
@@ -728,17 +965,21 @@ func (s *Service) UploadCommissionReceiptByManufacturer(ctx context.Context, own
 	if c.IshlabchiqaruvchiID != ownerID {
 		return nil, ErrForbidden
 	}
+	if c.Status != CommissionStatusPending {
+		return nil, ErrBadStatus
+	}
 
 	urls, err := s.storage.SaveProductImages([]*multipart.FileHeader{file})
 	if err != nil {
 		return nil, validationError("receipt", err.Error())
 	}
 
-	return s.repo.setCommissionReceiptURL(ctx, id, urls[0])
+	return s.repo.setCommissionReceiptURLAndSubmit(ctx, id, urls[0])
 }
 
-// MarkCommissionPaidByManufacturer — ishlab chiqaruvchi bank o'tkazmasidan
-// so'ng o'zi to'langanini belgilaydi (kvitansiya oldindan yuklangan bo'lishi shart).
+// MarkCommissionPaidByManufacturer — eskirgan: kvitansiya yuklash allaqachon
+// komissiyani "submitted" holatiga o'tkazadi (UploadCommissionReceiptByManufacturer),
+// yakuniy "to'langan" deb belgilashni esa faqat admin amalga oshiradi.
 func (s *Service) MarkCommissionPaidByManufacturer(ctx context.Context, ownerID, id int64) (*Commission, error) {
 	c, err := s.repo.GetCommissionByID(ctx, id)
 	if err != nil {
@@ -747,13 +988,7 @@ func (s *Service) MarkCommissionPaidByManufacturer(ctx context.Context, ownerID,
 	if c.IshlabchiqaruvchiID != ownerID {
 		return nil, ErrForbidden
 	}
-	if c.Status != CommissionStatusPending {
-		return nil, ErrBadStatus
-	}
-	if c.PaymentReceiptURL == "" {
-		return nil, ErrReceiptRequired
-	}
-	return s.repo.markCommissionPaid(ctx, id)
+	return nil, ErrManufacturerCannotMarkPaid
 }
 
 func (s *Service) ListCommissionsForAdmin(ctx context.Context, status string, limit, offset int) ([]Commission, error) {
@@ -761,17 +996,42 @@ func (s *Service) ListCommissionsForAdmin(ctx context.Context, status string, li
 	return s.repo.ListCommissionsAll(ctx, status, limit, offset)
 }
 
-// ConfirmCommissionPaidByAdmin — admin tomonidan yakuniy tasdiqlash, kvitansiya
-// yuklanganligidan qat'iy nazar.
+// ConfirmCommissionPaidByAdmin — admin tomonidan yakuniy tasdiqlash, faqat
+// ishlab chiqaruvchi kvitansiya yuklab "submitted" qilgan komissiyalar uchun.
 func (s *Service) ConfirmCommissionPaidByAdmin(ctx context.Context, id int64) (*Commission, error) {
 	c, err := s.repo.GetCommissionByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if c.Status != CommissionStatusPending {
+	if c.Status != CommissionStatusSubmitted {
 		return nil, ErrBadStatus
 	}
-	return s.repo.markCommissionPaid(ctx, id)
+	return s.repo.markCommissionPaid(ctx, id, CommissionStatusSubmitted)
+}
+
+// RejectCommissionByAdmin admin tomonidan noto'g'ri/soxta kvitansiya rad
+// etilganda komissiyani qayta to'lash uchun "pending" holatiga qaytaradi.
+func (s *Service) RejectCommissionByAdmin(ctx context.Context, id int64, note string) (*Commission, error) {
+	c, err := s.repo.GetCommissionByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if c.Status != CommissionStatusSubmitted {
+		return nil, ErrBadStatus
+	}
+
+	updated, err := s.repo.rejectCommission(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	s.notify(ctx, recipientIshlabchiqaruvchi, updated.IshlabchiqaruvchiID,
+		"Komissiya to'lovi rad etildi",
+		fmt.Sprintf("Buyurtma %d bo'yicha komissiya kvitansiyasi rad etildi%s. Iltimos, qaytadan to'lab, kvitansiya yuklang", updated.BuyurtmaID, noteSuffix(note)),
+		"/ishlabchiqaruvchi/komissiyalar",
+	)
+
+	return updated, nil
 }
 
 // ---- Platforma sozlamalari ----

@@ -4,6 +4,7 @@ import type {
   Commission,
   Ishlabchiqaruvchi,
   IshlabchiqaruvchiInput,
+  IshlabchiqaruvchiProfile,
   LoginResponse,
   Notification,
   Order,
@@ -12,6 +13,7 @@ import type {
   ProductCreateInput,
   ProductStatus,
   ProductUpdateInput,
+  RegisterInput,
   Subcategory,
 } from './types'
 
@@ -45,7 +47,9 @@ function descriptionPayload(description: ProductCreateInput['description']) {
 
 function toProductFormData(input: ProductCreateInput | ProductUpdateInput) {
   const form = new FormData()
+  if ('code' in input && input.code) form.set('code', input.code)
   form.set('name', input.name)
+  form.set('city', input.city)
   form.set('description', descriptionPayload(input.description))
   form.set('category_id', String(input.category_id))
   form.set('subcategory_id', String(input.subcategory_id))
@@ -138,10 +142,16 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
 
-  profile: () => request<Ishlabchiqaruvchi>('/ishlabchiqaruvchi/profile'),
+  register: (input: RegisterInput) =>
+    request<LoginResponse>('/ishlabchiqaruvchi/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  profile: () => request<IshlabchiqaruvchiProfile>('/ishlabchiqaruvchi/profile'),
 
   updateProfile: (input: IshlabchiqaruvchiInput) =>
-    request<Ishlabchiqaruvchi>('/ishlabchiqaruvchi/profile', {
+    request<IshlabchiqaruvchiProfile>('/ishlabchiqaruvchi/profile', {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
@@ -185,6 +195,7 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({
         name: input.name,
+        city: input.city,
         description: input.description,
         category_id: input.category_id,
         subcategory_id: input.subcategory_id,
@@ -229,6 +240,18 @@ export const api = {
   confirmAdvance: (id: number) =>
     request<Order>(`/ishlabchiqaruvchi/buyurtmalar/${id}/confirm-advance`, { method: 'POST' }),
 
+  rejectAdvanceReceipt: (id: number, note?: string) =>
+    request<Order>(`/ishlabchiqaruvchi/buyurtmalar/${id}/reject-advance-receipt`, {
+      method: 'POST',
+      ...(note ? { body: JSON.stringify({ note }) } : {}),
+    }),
+
+  rejectPaymentReceipt: (id: number, note?: string) =>
+    request<Order>(`/ishlabchiqaruvchi/buyurtmalar/${id}/reject-payment-receipt`, {
+      method: 'POST',
+      ...(note ? { body: JSON.stringify({ note }) } : {}),
+    }),
+
   downloadContractPdf: (id: number, number?: string) =>
     downloadFile(`/ishlabchiqaruvchi/buyurtmalar/${id}/contract.pdf`, `shartnoma-${number || id}.pdf`),
 
@@ -250,9 +273,6 @@ export const api = {
       body: form,
     })
   },
-
-  markCommissionPaid: (id: number) =>
-    request<Commission>(`/ishlabchiqaruvchi/komissiyalar/${id}/mark-paid`, { method: 'POST' }),
 
   notifications: (params?: { limit?: number; offset?: number }) => {
     const query = new URLSearchParams()
@@ -276,4 +296,20 @@ export function getErrorMessage(error: unknown) {
 
 export function getErrorField(error: unknown) {
   return error instanceof ApiRequestError ? error.field : undefined
+}
+
+export function isIshlabchiqaruvchiProfileComplete(user: Ishlabchiqaruvchi | null | undefined) {
+  if (!user) return false
+  return Boolean(
+    user.company_name?.trim() &&
+      user.stir?.trim() &&
+      user.bank_account?.trim() &&
+      user.bank_name?.trim() &&
+      user.address?.trim() &&
+      user.first_name?.trim() &&
+      user.last_name?.trim() &&
+      user.phone?.trim() &&
+      user.lat != null &&
+      user.lng != null,
+  )
 }

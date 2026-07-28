@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -16,6 +15,7 @@ var (
 	ErrValidation = errors.New("validatsiya xatosi")
 	ErrBadStatus  = errors.New("mahsulot holati bu amal uchun mos emas")
 	ErrCategory   = errors.New("kategoriya yoki subkategoriya noto'g'ri")
+	ErrInUse      = errors.New("bu mahsulot buyurtmalarda ishlatilgan, o'chirib bo'lmaydi")
 )
 
 const (
@@ -29,8 +29,6 @@ const (
 	PaymentTermDeferred     = "deferred"
 	PaymentTermPodZakaz5050 = "pod_zakaz_50_50"
 )
-
-var codePattern = regexp.MustCompile(`^[A-Z0-9]{3}-[A-Z0-9]{3}$`)
 
 type ValidationError struct {
 	Field   string
@@ -49,6 +47,7 @@ type Product struct {
 	Code                string          `json:"code"`
 	IshlabchiqaruvchiID int64           `json:"ishlabchiqaruvchi_id"`
 	Name                string          `json:"name"`
+	City                string          `json:"city"`
 	Description         json.RawMessage `json:"description"`
 	CategoryID          int64           `json:"category_id"`
 	SubcategoryID       int64           `json:"subcategory_id"`
@@ -63,12 +62,15 @@ type Product struct {
 	RejectionNote       string          `json:"rejection_note"`
 	ReviewedBy          *int64          `json:"reviewed_by,omitempty"`
 	ReviewedAt          *time.Time      `json:"reviewed_at,omitempty"`
+	DeletedAt           *time.Time      `json:"deleted_at,omitempty"`
 	CreatedAt           time.Time       `json:"created_at"`
 	UpdatedAt           time.Time       `json:"updated_at"`
 }
 
 type CreateInput struct {
+	Code          string
 	Name          string
+	City          string
 	Description   json.RawMessage
 	CategoryID    int64
 	SubcategoryID int64
@@ -82,8 +84,14 @@ type CreateInput struct {
 }
 
 func (i CreateInput) Validate() error {
+	if err := ValidateCode(i.Code); err != nil {
+		return err
+	}
 	if strings.TrimSpace(i.Name) == "" {
 		return validationError("name", "Mahsulot nomi kiritilishi shart")
+	}
+	if strings.TrimSpace(i.City) == "" {
+		return validationError("city", "Shahar kiritilishi shart")
 	}
 	if err := validateDelta(i.Description); err != nil {
 		return err
@@ -122,7 +130,9 @@ func (i CreateInput) Validate() error {
 }
 
 type UpdateInput struct {
+	Code          string
 	Name          string
+	City          string
 	Description   json.RawMessage
 	CategoryID    int64
 	SubcategoryID int64
@@ -137,8 +147,14 @@ type UpdateInput struct {
 }
 
 func (i UpdateInput) Validate() error {
+	if err := ValidateCode(i.Code); err != nil {
+		return err
+	}
 	if strings.TrimSpace(i.Name) == "" {
 		return validationError("name", "Mahsulot nomi kiritilishi shart")
+	}
+	if strings.TrimSpace(i.City) == "" {
+		return validationError("city", "Shahar kiritilishi shart")
 	}
 	if err := validateDelta(i.Description); err != nil {
 		return err
@@ -258,9 +274,11 @@ func validateDelta(raw json.RawMessage) error {
 }
 
 func ValidateCode(code string) error {
-	code = strings.TrimSpace(code)
-	if !codePattern.MatchString(code) {
-		return validationError("code", "Mahsulot kodi MK9-99U formatida bo'lishi kerak (masalan: ABC-123)")
+	if strings.TrimSpace(code) == "" {
+		return validationError("code", "Mahsulot kodi kiritilishi shart")
+	}
+	if len(strings.TrimSpace(code)) > 64 {
+		return validationError("code", "Mahsulot kodi 64 belgidan oshmasligi kerak")
 	}
 	return nil
 }

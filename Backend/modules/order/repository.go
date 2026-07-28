@@ -15,7 +15,7 @@ const orderColumns = `
 	id, number, xaridor_id, ishlabchiqaruvchi_id, dostavka_id, kurator_id, status,
 	payment_term, payment_days, total_amount,
 	point_a_address, point_a_lat, point_a_lng, point_b_address, point_b_lat, point_b_lng,
-	contract_html, invoice_html, invoice_number, payment_receipt_url, payment_deadline_at,
+	contract_html, invoice_html, invoice_number, invoice_agreed_at, payment_receipt_url, payment_deadline_at,
 	payment_phase, advance_amount, advance_receipt_url, advance_confirmed_at, deadline_warned_at,
 	accepted_at, ready_at, picked_up_at, shipped_at, delivered_at, buyer_received_at, paid_at,
 	force_majeure_at, force_majeure_by, guarantee_paid_at, guarantee_by,
@@ -28,6 +28,8 @@ const commissionColumns = `
 	status, invoice_html, payment_receipt_url, paid_at, created_at, updated_at`
 
 const debtColumns = `id, xaridor_id, buyurtma_id, amount, status, note, created_at, updated_at`
+
+const shartnomaColumns = `id, xaridor_id, ishlabchiqaruvchi_id, contract_html, agreed_at, created_at`
 
 // querier pgxpool.Pool va pgx.Tx uchun umumiy interfeys — bir xil metodlar
 // tranzaksiya ichida ham, tashqarisida ham ishlatiladi.
@@ -96,7 +98,7 @@ func scanOrder(row pgx.Row) (*Order, error) {
 		&o.ID, &o.Number, &o.XaridorID, &o.IshlabchiqaruvchiID, &o.DostavkaID, &o.KuratorID, &o.Status,
 		&o.PaymentTerm, &o.PaymentDays, &o.TotalAmount,
 		&o.PointAAddress, &o.PointALat, &o.PointALng, &o.PointBAddress, &o.PointBLat, &o.PointBLng,
-		&o.ContractHTML, &o.InvoiceHTML, &o.InvoiceNumber, &o.PaymentReceiptURL, &o.PaymentDeadlineAt,
+		&o.ContractHTML, &o.InvoiceHTML, &o.InvoiceNumber, &o.InvoiceAgreedAt, &o.PaymentReceiptURL, &o.PaymentDeadlineAt,
 		&o.PaymentPhase, &o.AdvanceAmount, &o.AdvanceReceiptURL, &o.AdvanceConfirmedAt, &o.DeadlineWarnedAt,
 		&o.AcceptedAt, &o.ReadyAt, &o.PickedUpAt, &o.ShippedAt, &o.DeliveredAt, &o.BuyerReceivedAt, &o.PaidAt,
 		&o.ForceMajeureAt, &o.ForceMajeureBy, &o.GuaranteePaidAt, &o.GuaranteeBy,
@@ -134,11 +136,27 @@ func scanCommission(row pgx.Row) (*Commission, error) {
 
 func scanSettings(row pgx.Row) (*PlatformSettings, error) {
 	var s PlatformSettings
-	err := row.Scan(&s.ID, &s.CommissionPercent, &s.FreePromoActive, &s.ReserveBalance, &s.UpdatedAt)
+	err := row.Scan(&s.ID, &s.CommissionPercent, &s.FreePromoActive, &s.ReserveBalance, &s.CuratorPercent, &s.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return &s, nil
+}
+
+func scanShartnoma(row pgx.Row) (*Shartnoma, error) {
+	var s Shartnoma
+	err := row.Scan(&s.ID, &s.XaridorID, &s.IshlabchiqaruvchiID, &s.ContractHTML, &s.AgreedAt, &s.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func mapShartnomaError(err error, action string) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrShartnomaNotFound
+	}
+	return fmt.Errorf("%s: %w", action, err)
 }
 
 func scanDebt(row pgx.Row) (*PlatformDebt, error) {
@@ -330,7 +348,7 @@ func (r *Repository) getProductsForOrder(ctx context.Context, q querier, ids []i
 	rows, err := q.Query(ctx, `
 		SELECT id, ishlabchiqaruvchi_id, code, name, price, quantity, moq, status, payment_term, payment_days
 		FROM products
-		WHERE id = ANY($1)
+		WHERE id = ANY($1) AND deleted_at IS NULL
 		FOR UPDATE`, ids,
 	)
 	if err != nil {
@@ -369,6 +387,8 @@ func (r *Repository) decrementProductStock(ctx context.Context, q querier, produ
 type manufacturerInfo struct {
 	ID          int64
 	CompanyName string
+	FirstName   string
+	LastName    string
 	Phone       string
 	Address     string
 	Lat         *float64
@@ -376,15 +396,24 @@ type manufacturerInfo struct {
 	STIR        string
 	BankAccount string
 	BankName    string
+	MFO         string
 	KuratorID   *int64
+}
+
+// ProfileComplete ishlab chiqaruvchi profilining buyurtma qabul qilish
+// uchun to'liq to'ldirilganligini tekshiradi.
+func (m *manufacturerInfo) ProfileComplete() bool {
+	return m.CompanyName != "" && m.FirstName != "" && m.LastName != "" && m.Phone != "" &&
+		m.STIR != "" && m.BankAccount != "" && m.BankName != "" && m.MFO != "" && m.Address != "" &&
+		m.Lat != nil && m.Lng != nil
 }
 
 func (r *Repository) getManufacturer(ctx context.Context, q querier, id int64) (*manufacturerInfo, error) {
 	var m manufacturerInfo
 	err := q.QueryRow(ctx, `
-		SELECT id, company_name, phone, address, lat, lng, stir, bank_account, bank_name, kurator_id
+		SELECT id, company_name, first_name, last_name, phone, address, lat, lng, stir, bank_account, bank_name, mfo, kurator_id
 		FROM ishlabchiqaruvchilar WHERE id = $1`, id,
-	).Scan(&m.ID, &m.CompanyName, &m.Phone, &m.Address, &m.Lat, &m.Lng, &m.STIR, &m.BankAccount, &m.BankName, &m.KuratorID)
+	).Scan(&m.ID, &m.CompanyName, &m.FirstName, &m.LastName, &m.Phone, &m.Address, &m.Lat, &m.Lng, &m.STIR, &m.BankAccount, &m.BankName, &m.MFO, &m.KuratorID)
 	if err != nil {
 		return nil, mapError(err, "ishlab chiqaruvchini olib bo'lmadi")
 	}
@@ -403,15 +432,23 @@ type buyerInfo struct {
 	STIR        string
 	BankAccount string
 	BankName    string
+	MFO         string
 	IsBlocked   bool
+}
+
+// ProfileComplete xaridor profilining buyurtma berish uchun to'liq
+// to'ldirilganligini tekshiradi.
+func (b *buyerInfo) ProfileComplete() bool {
+	return b.ShopName != "" && b.STIR != "" && b.BankAccount != "" && b.BankName != "" && b.MFO != "" &&
+		b.Address != "" && b.Lat != nil && b.Lng != nil
 }
 
 func (r *Repository) getBuyer(ctx context.Context, q querier, id int64) (*buyerInfo, error) {
 	var b buyerInfo
 	err := q.QueryRow(ctx, `
-		SELECT id, shop_name, first_name, last_name, phone, address, lat, lng, stir, bank_account, bank_name, is_blocked
+		SELECT id, shop_name, first_name, last_name, phone, address, lat, lng, stir, bank_account, bank_name, mfo, is_blocked
 		FROM xaridorlar WHERE id = $1`, id,
-	).Scan(&b.ID, &b.ShopName, &b.FirstName, &b.LastName, &b.Phone, &b.Address, &b.Lat, &b.Lng, &b.STIR, &b.BankAccount, &b.BankName, &b.IsBlocked)
+	).Scan(&b.ID, &b.ShopName, &b.FirstName, &b.LastName, &b.Phone, &b.Address, &b.Lat, &b.Lng, &b.STIR, &b.BankAccount, &b.BankName, &b.MFO, &b.IsBlocked)
 	if err != nil {
 		return nil, mapError(err, "xaridorni olib bo'lmadi")
 	}
@@ -550,6 +587,39 @@ func (r *Repository) setReady(ctx context.Context, id, dostavkaID int64) (*Order
 	return o, nil
 }
 
+// setReadyAwaitingFinalPayment pod_zakaz_50_50 to'lov sharti uchun: mahsulot
+// tayyor, lekin logistikaga uzatilmaydi — avval xaridordan yakuniy (ikkinchi)
+// to'lov kutiladi. Muddat (deadline) belgilanmaydi.
+func (r *Repository) setReadyAwaitingFinalPayment(ctx context.Context, id int64) (*Order, error) {
+	query := fmt.Sprintf(`
+		UPDATE buyurtmalar
+		SET status = $1, payment_phase = $2, ready_at = now(), updated_at = now()
+		WHERE id = $3 AND status = $4
+		RETURNING %s`, orderColumns)
+
+	o, err := scanOrder(r.pool.QueryRow(ctx, query, StatusTayyorTolovKutilmoqda, PaymentPhaseAwaitingFinal, id, StatusQabulQilindi))
+	if err != nil {
+		return nil, mapTransitionError(err, "buyurtmani yakuniy to'lov kutish holatiga o'tkazib bo'lmadi")
+	}
+	return o, nil
+}
+
+// confirmFinalAndSendToLogistics pod_zakaz_50_50 ikkinchi (yakuniy) to'lovi
+// tasdiqlanganidan keyin buyurtmani darhol logistikaga uzatadi.
+func (r *Repository) confirmFinalAndSendToLogistics(ctx context.Context, q querier, id, dostavkaID int64) (*Order, error) {
+	query := fmt.Sprintf(`
+		UPDATE buyurtmalar
+		SET status = $1, dostavka_id = $2, payment_phase = $3, updated_at = now()
+		WHERE id = $4 AND status = $5
+		RETURNING %s`, orderColumns)
+
+	o, err := scanOrder(q.QueryRow(ctx, query, StatusLogistikagaUzatildi, dostavkaID, PaymentPhasePaid, id, StatusTayyorTolovKutilmoqda))
+	if err != nil {
+		return nil, mapTransitionError(err, "yakuniy to'lovni tasdiqlab, logistikaga uzatib bo'lmadi")
+	}
+	return o, nil
+}
+
 func (r *Repository) ship(ctx context.Context, id int64) (*Order, error) {
 	query := fmt.Sprintf(`
 		UPDATE buyurtmalar SET status = $1, shipped_at = now(), updated_at = now()
@@ -576,15 +646,51 @@ func (r *Repository) confirmPayment(ctx context.Context, q querier, id int64) (*
 	return o, nil
 }
 
-func (r *Repository) receive(ctx context.Context, id int64, deadline time.Time, phase string) (*Order, error) {
+func (r *Repository) receive(ctx context.Context, id int64, deadline *time.Time, phase string) (*Order, error) {
 	query := fmt.Sprintf(`
-		UPDATE buyurtmalar SET status = $1, buyer_received_at = now(), payment_deadline_at = $2, payment_phase = $3, updated_at = now()
+		UPDATE buyurtmalar
+		SET status = $1, buyer_received_at = now(), payment_deadline_at = $2, payment_phase = $3,
+		    invoice_agreed_at = COALESCE(invoice_agreed_at, now()), updated_at = now()
 		WHERE id = $4 AND status = $5
 		RETURNING %s`, orderColumns)
 
 	o, err := scanOrder(r.pool.QueryRow(ctx, query, StatusYetkazildiTolovKutilmoqda, deadline, phase, id, StatusYolda))
 	if err != nil {
 		return nil, mapTransitionError(err, "buyurtma qabul qilinganini belgilab bo'lmadi")
+	}
+	return o, nil
+}
+
+// receiveAndClose — pod_zakaz_50_50 uchun: ikkinchi to'lov allaqachon
+// yakuniy to'lov sifatida tasdiqlangan bo'lsa, xaridor qabul qilganda
+// buyurtma darhol yakunlanadi (to'lov muddati kerak emas).
+func (r *Repository) receiveAndClose(ctx context.Context, q querier, id int64) (*Order, error) {
+	query := fmt.Sprintf(`
+		UPDATE buyurtmalar
+		SET status = $1, buyer_received_at = now(), payment_deadline_at = NULL, paid_at = now(),
+		    invoice_agreed_at = COALESCE(invoice_agreed_at, now()), updated_at = now()
+		WHERE id = $2 AND status = $3
+		RETURNING %s`, orderColumns)
+
+	o, err := scanOrder(q.QueryRow(ctx, query, StatusYakunlandi, id, StatusYolda))
+	if err != nil {
+		return nil, mapTransitionError(err, "buyurtmani yakunlab bo'lmadi")
+	}
+	return o, nil
+}
+
+// agreeInvoice xaridor tomonidan hisob-fakturani alohida tasdiqlashi uchun
+// (odatda receive bilan birga avtomatik belgilanadi, lekin alohida endpoint
+// ham mavjud).
+func (r *Repository) agreeInvoice(ctx context.Context, id int64) (*Order, error) {
+	query := fmt.Sprintf(`
+		UPDATE buyurtmalar SET invoice_agreed_at = COALESCE(invoice_agreed_at, now()), updated_at = now()
+		WHERE id = $1
+		RETURNING %s`, orderColumns)
+
+	o, err := scanOrder(r.pool.QueryRow(ctx, query, id))
+	if err != nil {
+		return nil, mapError(err, "hisob-fakturani tasdiqlab bo'lmadi")
 	}
 	return o, nil
 }
@@ -611,6 +717,36 @@ func (r *Repository) setAdvanceReceiptURL(ctx context.Context, id int64, url str
 	o, err := scanOrder(r.pool.QueryRow(ctx, query, url, id))
 	if err != nil {
 		return nil, mapError(err, "avans kvitansiyasini saqlab bo'lmadi")
+	}
+	return o, nil
+}
+
+// clearAdvanceReceiptURL ishlab chiqaruvchi avans kvitansiyasini rad etganda
+// xaridorga qayta yuklash imkonini berish uchun URL'ni tozalaydi.
+func (r *Repository) clearAdvanceReceiptURL(ctx context.Context, id int64) (*Order, error) {
+	query := fmt.Sprintf(`
+		UPDATE buyurtmalar SET advance_receipt_url = '', updated_at = now()
+		WHERE id = $1
+		RETURNING %s`, orderColumns)
+
+	o, err := scanOrder(r.pool.QueryRow(ctx, query, id))
+	if err != nil {
+		return nil, mapError(err, "avans kvitansiyasini rad etib bo'lmadi")
+	}
+	return o, nil
+}
+
+// clearPaymentReceiptURL ishlab chiqaruvchi to'lov kvitansiyasini rad
+// etganda xaridorga qayta yuklash imkonini berish uchun URL'ni tozalaydi.
+func (r *Repository) clearPaymentReceiptURL(ctx context.Context, id int64) (*Order, error) {
+	query := fmt.Sprintf(`
+		UPDATE buyurtmalar SET payment_receipt_url = '', updated_at = now()
+		WHERE id = $1
+		RETURNING %s`, orderColumns)
+
+	o, err := scanOrder(r.pool.QueryRow(ctx, query, id))
+	if err != nil {
+		return nil, mapError(err, "to'lov kvitansiyasini rad etib bo'lmadi")
 	}
 	return o, nil
 }
@@ -684,7 +820,7 @@ func (r *Repository) guarantee(ctx context.Context, q querier, id, adminID int64
 
 func (r *Repository) getSettings(ctx context.Context, q querier) (*PlatformSettings, error) {
 	s, err := scanSettings(q.QueryRow(ctx, `
-		SELECT id, commission_percent, free_promo_active, reserve_balance, updated_at
+		SELECT id, commission_percent, free_promo_active, reserve_balance, curator_percent, updated_at
 		FROM platform_settings ORDER BY id LIMIT 1`))
 	if err != nil {
 		return nil, mapError(err, "platforma sozlamalarini olib bo'lmadi")
@@ -698,10 +834,11 @@ func (r *Repository) GetSettings(ctx context.Context) (*PlatformSettings, error)
 
 func (r *Repository) UpdateSettings(ctx context.Context, input UpdatePlatformSettingsInput) (*PlatformSettings, error) {
 	s, err := scanSettings(r.pool.QueryRow(ctx, `
-		UPDATE platform_settings SET commission_percent = $1, free_promo_active = $2, reserve_balance = $3, updated_at = now()
+		UPDATE platform_settings
+		SET commission_percent = $1, free_promo_active = $2, reserve_balance = $3, curator_percent = $4, updated_at = now()
 		WHERE id = (SELECT id FROM platform_settings ORDER BY id LIMIT 1)
-		RETURNING id, commission_percent, free_promo_active, reserve_balance, updated_at`,
-		input.CommissionPercent, input.FreePromoActive, input.ReserveBalance,
+		RETURNING id, commission_percent, free_promo_active, reserve_balance, curator_percent, updated_at`,
+		input.CommissionPercent, input.FreePromoActive, input.ReserveBalance, input.CuratorPercent,
 	))
 	if err != nil {
 		return nil, mapError(err, "platforma sozlamalarini yangilab bo'lmadi")
@@ -794,28 +931,46 @@ func (r *Repository) ListCommissionsAll(ctx context.Context, status string, limi
 	return collectCommissions(rows)
 }
 
-func (r *Repository) setCommissionReceiptURL(ctx context.Context, id int64, url string) (*Commission, error) {
+// setCommissionReceiptURLAndSubmit ishlab chiqaruvchi kvitansiya yuklaganda
+// komissiyani "submitted" holatiga o'tkazadi — yakuniy tasdiqni faqat admin
+// bera oladi.
+func (r *Repository) setCommissionReceiptURLAndSubmit(ctx context.Context, id int64, url string) (*Commission, error) {
 	query := fmt.Sprintf(`
-		UPDATE komissiyalar SET payment_receipt_url = $1, updated_at = now()
-		WHERE id = $2
+		UPDATE komissiyalar SET payment_receipt_url = $1, status = $2, updated_at = now()
+		WHERE id = $3 AND status = $4
 		RETURNING %s`, commissionColumns)
 
-	c, err := scanCommission(r.pool.QueryRow(ctx, query, url, id))
+	c, err := scanCommission(r.pool.QueryRow(ctx, query, url, CommissionStatusSubmitted, id, CommissionStatusPending))
 	if err != nil {
-		return nil, mapCommissionError(err, "komissiya kvitansiyasini saqlab bo'lmadi")
+		return nil, mapCommissionTransitionError(err, "komissiya kvitansiyasini yuklab bo'lmadi")
 	}
 	return c, nil
 }
 
-func (r *Repository) markCommissionPaid(ctx context.Context, id int64) (*Commission, error) {
+func (r *Repository) markCommissionPaid(ctx context.Context, id int64, fromStatus string) (*Commission, error) {
 	query := fmt.Sprintf(`
 		UPDATE komissiyalar SET status = $1, paid_at = now(), updated_at = now()
 		WHERE id = $2 AND status = $3
 		RETURNING %s`, commissionColumns)
 
-	c, err := scanCommission(r.pool.QueryRow(ctx, query, CommissionStatusPaid, id, CommissionStatusPending))
+	c, err := scanCommission(r.pool.QueryRow(ctx, query, CommissionStatusPaid, id, fromStatus))
 	if err != nil {
 		return nil, mapCommissionTransitionError(err, "komissiyani to'langan deb belgilab bo'lmadi")
+	}
+	return c, nil
+}
+
+// rejectCommission admin tomonidan rad etilgan komissiyani qayta to'lash
+// uchun "pending" holatiga qaytaradi va eski kvitansiyani tozalaydi.
+func (r *Repository) rejectCommission(ctx context.Context, id int64) (*Commission, error) {
+	query := fmt.Sprintf(`
+		UPDATE komissiyalar SET status = $1, payment_receipt_url = '', updated_at = now()
+		WHERE id = $2 AND status = $3
+		RETURNING %s`, commissionColumns)
+
+	c, err := scanCommission(r.pool.QueryRow(ctx, query, CommissionStatusPending, id, CommissionStatusSubmitted))
+	if err != nil {
+		return nil, mapCommissionTransitionError(err, "komissiyani rad etib bo'lmadi")
 	}
 	return c, nil
 }
@@ -932,4 +1087,79 @@ func (r *Repository) setDebtStatus(ctx context.Context, id int64, status, note s
 		return nil, fmt.Errorf("qarz holatini yangilab bo'lmadi: %w", err)
 	}
 	return d, nil
+}
+
+// ---- kurator daromadlari ----
+
+// createKuratorDaromad buyurtma yopilganda kuratorga tegishli daromadni
+// yozadi. buyurtma_id UNIQUE bo'lgani uchun bir buyurtma uchun ikki marta
+// yozilmaydi (ON CONFLICT DO NOTHING).
+func (r *Repository) createKuratorDaromad(ctx context.Context, q querier, kuratorID, buyurtmaID int64, orderAmount, percent, amount float64) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO kurator_daromadlar (kurator_id, buyurtma_id, order_amount, percent, amount)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (buyurtma_id) DO NOTHING`,
+		kuratorID, buyurtmaID, orderAmount, percent, amount,
+	)
+	if err != nil {
+		return fmt.Errorf("kurator daromadini yozib bo'lmadi: %w", err)
+	}
+	return nil
+}
+
+// ---- shartnomalar (xaridor-zavod umumiy shartnomasi) ----
+
+func (r *Repository) getShartnomaByPair(ctx context.Context, q querier, xaridorID, manufacturerID int64) (*Shartnoma, error) {
+	query := fmt.Sprintf(`SELECT %s FROM shartnomalar WHERE xaridor_id = $1 AND ishlabchiqaruvchi_id = $2`, shartnomaColumns)
+
+	s, err := scanShartnoma(q.QueryRow(ctx, query, xaridorID, manufacturerID))
+	if err != nil {
+		return nil, mapShartnomaError(err, "shartnomani olib bo'lmadi")
+	}
+	return s, nil
+}
+
+func (r *Repository) insertShartnoma(ctx context.Context, q querier, xaridorID, manufacturerID int64, html string) (*Shartnoma, error) {
+	query := fmt.Sprintf(`
+		INSERT INTO shartnomalar (xaridor_id, ishlabchiqaruvchi_id, contract_html)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (xaridor_id, ishlabchiqaruvchi_id) DO NOTHING
+		RETURNING %s`, shartnomaColumns)
+
+	s, err := scanShartnoma(q.QueryRow(ctx, query, xaridorID, manufacturerID, html))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// ON CONFLICT DO NOTHING tufayli qator qaytmadi — musobaqa holati,
+			// mavjud yozuvni o'qib qaytaramiz.
+			return r.getShartnomaByPair(ctx, q, xaridorID, manufacturerID)
+		}
+		return nil, fmt.Errorf("shartnomani bazaga yozib bo'lmadi: %w", err)
+	}
+	return s, nil
+}
+
+// getOrCreateShartnoma xaridor-zavod juftligi uchun shartnoma mavjud
+// bo'lmasa, yangi (tasdiqlanmagan) shartnoma yaratadi.
+func (r *Repository) getOrCreateShartnoma(ctx context.Context, q querier, xaridorID, manufacturerID int64, contractHTML string) (*Shartnoma, error) {
+	existing, err := r.getShartnomaByPair(ctx, q, xaridorID, manufacturerID)
+	if err == nil {
+		return existing, nil
+	}
+	if !errors.Is(err, ErrShartnomaNotFound) {
+		return nil, err
+	}
+	return r.insertShartnoma(ctx, q, xaridorID, manufacturerID, contractHTML)
+}
+
+func (r *Repository) agreeShartnoma(ctx context.Context, q querier, id int64) (*Shartnoma, error) {
+	query := fmt.Sprintf(`
+		UPDATE shartnomalar SET agreed_at = now()
+		WHERE id = $1 AND agreed_at IS NULL
+		RETURNING %s`, shartnomaColumns)
+
+	s, err := scanShartnoma(q.QueryRow(ctx, query, id))
+	if err != nil {
+		return nil, mapShartnomaError(err, "shartnomani tasdiqlab bo'lmadi")
+	}
+	return s, nil
 }

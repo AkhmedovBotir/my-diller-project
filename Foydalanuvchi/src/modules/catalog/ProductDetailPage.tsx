@@ -125,6 +125,7 @@ export function ProductDetailPage() {
             <InfoTile label="Omborda mavjud" value={String(product.quantity)} />
             <InfoTile label="To‘lov sharti" value={paymentTermFull(product.payment_term, product.payment_days)} />
             <InfoTile label="Mahsulot kodi" value={product.code} />
+            {product.city && <InfoTile label="Shahar" value={product.city} />}
           </div>
 
           <div className="rounded-2xl border border-slate-200/80 bg-white p-5">

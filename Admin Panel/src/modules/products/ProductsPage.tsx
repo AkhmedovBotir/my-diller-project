@@ -17,15 +17,23 @@ import {
 } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
+import { paymentTermLabel } from '../../shared/order'
 import { deltaToHtml, deltaToPlainText, formatPrice, plainTextToDelta } from '../../shared/product'
 import { useSnackbar } from '../../shared/Snackbar'
 import type {
   Category,
   Ishlabchiqaruvchi,
+  PaymentTerm,
   Product,
   ProductStatus,
   Subcategory,
 } from '../../shared/types'
+
+const PAYMENT_TERM_OPTIONS: Array<{ value: PaymentTerm; label: string }> = [
+  { value: 'prepay_100', label: paymentTermLabel.prepay_100 },
+  { value: 'deferred', label: paymentTermLabel.deferred },
+  { value: 'pod_zakaz_50_50', label: paymentTermLabel.pod_zakaz_50_50 },
+]
 
 const statusTabs: Array<{ value: ProductStatus | 'all'; label: string }> = [
   { value: 'all', label: 'Barchasi' },
@@ -494,10 +502,13 @@ function ProductViewModal({
 
         <dl className="mt-6 grid gap-4 sm:grid-cols-2">
           <Detail label="Ishlab chiqaruvchi" value={producerName} />
+          <Detail label="Shahar" value={product.city || '—'} />
           <Detail label="Kategoriya" value={categoryName} />
           <Detail label="Subkategoriya" value={subcategoryName} />
           <Detail label="Narx" value={formatPrice(product.price)} />
           <Detail label="Miqdor" value={String(product.quantity)} />
+          <Detail label="MOQ" value={String(product.moq)} />
+          <Detail label="To‘lov sharti" value={paymentTermLabel[product.payment_term]} />
           <Detail label="Yaratilgan" value={formatDateTime(product.created_at)} />
           <Detail label="Yangilangan" value={formatDateTime(product.updated_at)} />
           <Detail label="Ko‘rib chiqilgan" value={product.reviewed_at ? formatDateTime(product.reviewed_at) : '—'} />
@@ -556,6 +567,7 @@ function ProductEditModal({
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
   const [categoryId, setCategoryId] = useState(product.category_id)
+  const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>(product.payment_term)
   const [images, setImages] = useState<File[]>([])
 
   const availableSubs = useMemo(
@@ -568,14 +580,44 @@ function ProductEditModal({
     setSaving(true)
     setErrorField(undefined)
     const form = new FormData(event.currentTarget)
+
+    const moq = Number(form.get('moq'))
+    if (!Number.isFinite(moq) || moq < 1) {
+      setErrorField('moq')
+      showSnackbar('MOQ kamida 1 bo‘lishi kerak', 'error')
+      setSaving(false)
+      return
+    }
+
+    const paymentDays = paymentTerm === 'deferred' ? Number(form.get('payment_days')) : 0
+    if (paymentTerm === 'deferred' && (!Number.isFinite(paymentDays) || paymentDays < 1 || paymentDays > 30)) {
+      setErrorField('payment_days')
+      showSnackbar('Kechiktirilgan to‘lovda kunlar soni 1–30 oralig‘ida bo‘lishi kerak', 'error')
+      setSaving(false)
+      return
+    }
+
+    const code = String(form.get('code') || '').trim()
+    if (!code) {
+      setErrorField('code')
+      showSnackbar('Mahsulot kodi kiritilishi shart', 'error')
+      setSaving(false)
+      return
+    }
+
     try {
       await api.updateProduct(product.id, {
+        code,
         name: String(form.get('name')),
+        city: String(form.get('city') || ''),
         description: plainTextToDelta(String(form.get('description'))),
         category_id: Number(form.get('category_id')),
         subcategory_id: Number(form.get('subcategory_id')),
         price: Number(form.get('price')),
         quantity: Number(form.get('quantity')),
+        moq,
+        payment_term: paymentTerm,
+        payment_days: paymentDays,
         images: images.length ? images : undefined,
       })
       showSnackbar('Mahsulot yangilandi va tasdiqlandi')
@@ -597,10 +639,11 @@ function ProductEditModal({
         onClose={onClose}
       />
       <form onSubmit={handleSubmit} className="max-h-[75vh] space-y-4 overflow-y-auto p-6">
-        <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          Kod: <span className="font-bold text-slate-700">{product.code}</span> (o‘zgartirilmaydi)
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field name="code" label="Mahsulot kodi" defaultValue={product.code} invalid={errorField === 'code'} />
+          <Field name="name" label="Nomi" defaultValue={product.name} invalid={errorField === 'name'} />
+          <Field name="city" label="Shahar" defaultValue={product.city} invalid={errorField === 'city'} />
         </div>
-        <Field name="name" label="Nomi" defaultValue={product.name} invalid={errorField === 'name'} />
         <label className="block">
           <span className="mb-2 block text-xs font-bold text-slate-600">Tavsif</span>
           <textarea
@@ -651,6 +694,34 @@ function ProductEditModal({
           </label>
           <Field name="price" label="Narx" type="number" defaultValue={String(product.price)} invalid={errorField === 'price'} />
           <Field name="quantity" label="Miqdor" type="number" defaultValue={String(product.quantity)} invalid={errorField === 'quantity'} />
+          <Field name="moq" label="MOQ (min. buyurtma)" type="number" defaultValue={String(product.moq)} invalid={errorField === 'moq'} />
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold text-slate-600">To‘lov sharti</span>
+            <select
+              name="payment_term"
+              value={paymentTerm}
+              onChange={(event) => setPaymentTerm(event.target.value as PaymentTerm)}
+              className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
+                errorField === 'payment_term' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
+              }`}
+            >
+              {PAYMENT_TERM_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {paymentTerm === 'deferred' && (
+            <Field
+              name="payment_days"
+              label="Kechiktirish (kun, 1–30)"
+              type="number"
+              defaultValue={String(product.payment_days || 0)}
+              invalid={errorField === 'payment_days'}
+              className="sm:col-span-2"
+            />
+          )}
         </div>
         <label className="block">
           <span className="mb-2 block text-xs font-bold text-slate-600">
@@ -781,7 +852,8 @@ function DeleteModal({
         </div>
         <h3 className="mt-5 text-lg font-bold">Mahsulotni o‘chirasizmi?</h3>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          <span className="font-semibold text-slate-600">{product.name}</span> ({product.code}) butunlay o‘chiriladi.
+          <span className="font-semibold text-slate-600">{product.name}</span> ({product.code}) mahsulotlar
+          ro‘yxatidan olib tashlanadi. Buyurtmalardagi ma’lumotlar saqlanib qoladi.
         </p>
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button onClick={onClose} className="h-11 rounded-xl border border-slate-200 text-sm font-bold text-slate-600">
@@ -867,15 +939,17 @@ function Field({
   defaultValue,
   type = 'text',
   invalid = false,
+  className = '',
 }: {
   name: string
   label: string
   defaultValue?: string
   type?: string
   invalid?: boolean
+  className?: string
 }) {
   return (
-    <label className="block">
+    <label className={`block ${className}`}>
       <span className="mb-2 block text-xs font-bold text-slate-600">{label}</span>
       <input
         name={name}

@@ -299,6 +299,7 @@ function ViewModal({ item, onClose, onEdit }: { item: Xaridor; onClose: () => vo
     { label: 'STIR', value: item.stir || '—' },
     { label: 'Bank hisobi', value: item.bank_account || '—' },
     { label: 'Bank nomi', value: item.bank_name || '—' },
+    { label: 'MFO', value: item.mfo || '—' },
     { label: 'Manzil', value: item.address || '—' },
     { label: 'Yaratilgan', value: formatDateTime(item.created_at) },
     { label: 'Yangilangan', value: formatDateTime(item.updated_at) },
@@ -392,6 +393,7 @@ function FormModal({
       stir: String(form.get('stir') ?? ''),
       bank_account: String(form.get('bank_account') ?? ''),
       bank_name: String(form.get('bank_name') ?? ''),
+      mfo: String(form.get('mfo') ?? ''),
       address: String(form.get('address') ?? ''),
     }
     if (item && !input.password) delete input.password
@@ -467,6 +469,13 @@ function FormModal({
             required={false}
             defaultValue={item?.bank_name}
             invalid={errorField === 'bank_name'}
+          />
+          <Field
+            name="mfo"
+            label="MFO"
+            required={false}
+            defaultValue={item?.mfo}
+            invalid={errorField === 'mfo'}
           />
           <Field
             name="address"

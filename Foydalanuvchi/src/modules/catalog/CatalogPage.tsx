@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  MapPin,
   Minus,
   Package,
   Plus,
@@ -261,6 +262,12 @@ function ProductCard({
           <p className="line-clamp-2 text-sm font-bold text-slate-800">{product.name}</p>
         </Link>
         <p className="mt-1 font-mono text-xs text-slate-400">{product.code}</p>
+        {product.city && (
+          <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+            <MapPin size={12} />
+            {product.city}
+          </p>
+        )}
         <p className="mt-2 text-lg font-bold tracking-tight text-[#173c32]">{formatPrice(product.price)}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">

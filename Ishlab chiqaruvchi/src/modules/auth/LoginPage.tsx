@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, Building2, Eye, EyeOff, LoaderCircle, LockKeyhole } from 'lucide-react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { getErrorField, getErrorMessage } from '../../shared/api'
+import { isProfileComplete } from '../../shared/profileComplete'
 import { useSnackbar } from '../../shared/Snackbar'
 import { useAuth } from './AuthContext'
 
@@ -24,8 +25,13 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       const loggedUser = await login(username.trim(), password)
-      showSnackbar(`Xush kelibsiz, ${loggedUser.first_name}!`)
-      navigate('/', { replace: true })
+      if (!isProfileComplete(loggedUser)) {
+        showSnackbar('Mahsulot qo‘shishdan oldin profilni 100% to‘ldiring', 'error')
+        navigate('/profile', { replace: true })
+      } else {
+        showSnackbar(`Xush kelibsiz, ${loggedUser.first_name || loggedUser.company_name}!`)
+        navigate('/', { replace: true })
+      }
     } catch (loginError) {
       showSnackbar(getErrorMessage(loginError), 'error')
       setErrorField(getErrorField(loginError))
@@ -169,6 +175,13 @@ export function LoginPage() {
                 )}
               </motion.button>
             </form>
+
+            <p className="mt-7 text-center text-sm text-slate-500">
+              Hisobingiz yo‘qmi?{' '}
+              <Link to="/register" className="font-bold text-[#173c32] hover:underline">
+                Ro‘yxatdan o‘tish
+              </Link>
+            </p>
 
             <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400">
               <Building2 size={14} />

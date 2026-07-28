@@ -35,6 +35,7 @@ export interface Ishlabchiqaruvchi {
   stir?: string
   bank_account?: string
   bank_name?: string
+  mfo?: string
   address?: string
   lat?: number | null
   lng?: number | null
@@ -50,6 +51,11 @@ export interface IshlabchiqaruvchiInput {
   phone: string
   username: string
   password?: string
+  stir?: string
+  bank_account?: string
+  bank_name?: string
+  mfo?: string
+  address?: string
   kurator_id?: number | null
 }
 
@@ -92,11 +98,15 @@ export interface Product {
   code: string
   ishlabchiqaruvchi_id: number
   name: string
+  city: string
   description: QuillDelta | string
   category_id: number
   subcategory_id: number
   price: number
   quantity: number
+  moq: number
+  payment_term: PaymentTerm
+  payment_days: number
   images: string[]
   status: ProductStatus
   rejection_note: string
@@ -107,12 +117,17 @@ export interface Product {
 }
 
 export interface ProductUpdateInput {
+  code: string
   name: string
+  city: string
   description: QuillDelta | string
   category_id: number
   subcategory_id: number
   price: number
   quantity: number
+  moq: number
+  payment_term: PaymentTerm
+  payment_days: number
   images?: File[]
 }
 
@@ -184,7 +199,7 @@ export interface Order {
   items?: OrderItem[]
 }
 
-export type CommissionStatus = 'pending' | 'paid' | 'waived'
+export type CommissionStatus = 'pending' | 'submitted' | 'paid' | 'waived'
 
 export interface Commission {
   id: number
@@ -206,6 +221,7 @@ export interface PlatformSettings {
   commission_percent: number
   free_promo_active: boolean
   reserve_balance: number
+  curator_percent: number
   updated_at: string
 }
 
@@ -213,6 +229,26 @@ export interface UpdatePlatformSettingsInput {
   commission_percent: number
   free_promo_active: boolean
   reserve_balance: number
+  curator_percent: number
+}
+
+// ---- Kurator kartaga pul yechish so'rovlari (bosh admin ko'rinishi) ----
+
+export type KuratorTolovStatus = 'pending' | 'paid' | 'rejected'
+
+export interface KuratorTolovSorovi {
+  id: number
+  kurator_id: number
+  amount: number
+  card_number: string
+  card_holder: string
+  note: string
+  status: KuratorTolovStatus
+  admin_note: string
+  processed_by?: number | null
+  processed_at?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Xaridor {
@@ -225,6 +261,7 @@ export interface Xaridor {
   stir: string
   bank_account: string
   bank_name: string
+  mfo: string
   address: string
   lat?: number | null
   lng?: number | null
@@ -244,6 +281,7 @@ export interface XaridorInput {
   stir?: string
   bank_account?: string
   bank_name?: string
+  mfo?: string
   address?: string
   lat?: number | null
   lng?: number | null

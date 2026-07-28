@@ -28,7 +28,19 @@ var (
 	ErrCommissionNotFound  = errors.New("komissiya topilmadi")
 	ErrDebtNotFound        = errors.New("platforma qarzi topilmadi")
 	ErrDebtBadStatus       = errors.New("qarz holati bu amal uchun mos emas")
+	ErrShartnomaNotFound   = errors.New("shartnoma topilmadi")
 )
+
+// ErrContractNotAgreed — xaridor va ishlab chiqaruvchi o'rtasidagi umumiy
+// shartnoma hali tasdiqlanmagan bo'lsa buyurtma yaratishdan oldin qaytariladi.
+// ErrBadStatus'ni o'raydi, shuning uchun mavjud xatolik klassifikatsiyasi
+// (HTTP 409) o'zgarishsiz ishlaydi.
+var ErrContractNotAgreed = fmt.Errorf("%w: avval xaridor-zavod shartnomasini tasdiqlashingiz kerak", ErrBadStatus)
+
+// ErrManufacturerCannotMarkPaid — komissiyani "to'langan" deb faqat admin
+// belgilay oladi, ishlab chiqaruvchi esa faqat kvitansiya yuklab, "submitted"
+// holatiga o'tkaza oladi.
+var ErrManufacturerCannotMarkPaid = errors.New("komissiyani to'langan deb belgilash faqat admin tomonidan amalga oshiriladi")
 
 // ErrAdvanceRequired — ishlab chiqaruvchi buyurtmani qabul qilishdan oldin
 // xaridorning avans to'lovi tasdiqlanishi kerak bo'lganda qaytariladi.
@@ -40,6 +52,7 @@ var ErrAdvanceRequired = fmt.Errorf("%w: avval xaridor tomonidan avans to'lovi t
 const (
 	StatusYangi                     = "yangi"
 	StatusQabulQilindi              = "qabul_qilindi"
+	StatusTayyorTolovKutilmoqda     = "tayyor_tolov_kutilmoqda"
 	StatusLogistikagaUzatildi       = "logistikaga_uzatildi"
 	StatusYolda                     = "yolda"
 	StatusYetkazildiTolovKutilmoqda = "yetkazildi_tolov_kutilmoqda"
@@ -57,9 +70,10 @@ const (
 
 // Komissiya holatlari.
 const (
-	CommissionStatusPending = "pending"
-	CommissionStatusPaid    = "paid"
-	CommissionStatusWaived  = "waived"
+	CommissionStatusPending   = "pending"
+	CommissionStatusSubmitted = "submitted"
+	CommissionStatusPaid      = "paid"
+	CommissionStatusWaived    = "waived"
 )
 
 // To'lov bosqichlari (payment_phase) — avans va yakuniy to'lov jarayonini
@@ -121,6 +135,7 @@ type Order struct {
 	ContractHTML        string     `json:"contract_html"`
 	InvoiceHTML         string     `json:"invoice_html"`
 	InvoiceNumber       string     `json:"invoice_number"`
+	InvoiceAgreedAt     *time.Time `json:"invoice_agreed_at,omitempty"`
 	PaymentReceiptURL   string     `json:"payment_receipt_url"`
 	PaymentDeadlineAt   *time.Time `json:"payment_deadline_at,omitempty"`
 	PaymentPhase        string     `json:"payment_phase"`
@@ -180,7 +195,27 @@ type PlatformSettings struct {
 	CommissionPercent float64   `json:"commission_percent"`
 	FreePromoActive   bool      `json:"free_promo_active"`
 	ReserveBalance    float64   `json:"reserve_balance"`
+	CuratorPercent    float64   `json:"curator_percent"`
 	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+// Shartnoma — xaridor va ishlab chiqaruvchi o'rtasidagi bir martalik umumiy
+// shartnoma (shartnomalar jadvaliga mos).
+type Shartnoma struct {
+	ID                  int64      `json:"id"`
+	XaridorID           int64      `json:"xaridor_id"`
+	IshlabchiqaruvchiID int64      `json:"ishlabchiqaruvchi_id"`
+	ContractHTML        string     `json:"contract_html"`
+	AgreedAt            *time.Time `json:"agreed_at,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+}
+
+// ShartnomaResponse — GET /xaridor/shartnomalar/{id} javobi.
+type ShartnomaResponse struct {
+	ID           int64      `json:"id"`
+	AgreedAt     *time.Time `json:"agreed_at,omitempty"`
+	ContractHTML string     `json:"contract_html"`
+	NeedsAgree   bool       `json:"needs_agree"`
 }
 
 // PlatformDebt — platform_debts jadvaliga mos model. Fors-major holatida
@@ -228,6 +263,10 @@ type CreateOrderItemInput struct {
 type CreateOrderInput struct {
 	Items []CreateOrderItemInput `json:"items"`
 	Note  string                 `json:"note,omitempty"`
+	// AgreeContract — xaridor-zavod umumiy shartnomasi hali tasdiqlanmagan
+	// bo'lsa, uni shu buyurtma bilan birga tasdiqlash uchun true yuborilishi
+	// kerak, aks holda ErrContractNotAgreed qaytariladi.
+	AgreeContract bool `json:"agree_contract,omitempty"`
 }
 
 func (i CreateOrderInput) Validate() error {
@@ -260,6 +299,7 @@ type UpdatePlatformSettingsInput struct {
 	CommissionPercent float64 `json:"commission_percent"`
 	FreePromoActive   bool    `json:"free_promo_active"`
 	ReserveBalance    float64 `json:"reserve_balance"`
+	CuratorPercent    float64 `json:"curator_percent"`
 }
 
 func (i UpdatePlatformSettingsInput) Validate() error {
@@ -269,10 +309,24 @@ func (i UpdatePlatformSettingsInput) Validate() error {
 	if i.ReserveBalance < 0 {
 		return validationError("reserve_balance", "reserve_balance manfiy bo'lishi mumkin emas")
 	}
+	if i.CuratorPercent < 0 || i.CuratorPercent > 100 {
+		return validationError("curator_percent", "curator_percent 0 va 100 oralig'ida bo'lishi kerak")
+	}
 	return nil
 }
 
 type CollectDebtInput struct {
+	Note string `json:"note,omitempty"`
+}
+
+// RejectReceiptInput — ishlab chiqaruvchi tomonidan avans/to'lov
+// kvitansiyasini rad etishda ixtiyoriy izoh.
+type RejectReceiptInput struct {
+	Note string `json:"note,omitempty"`
+}
+
+// RejectCommissionInput — admin tomonidan komissiyani rad etishda ixtiyoriy izoh.
+type RejectCommissionInput struct {
 	Note string `json:"note,omitempty"`
 }
 
@@ -288,7 +342,7 @@ func normalizePagination(limit, offset int) (int, int) {
 
 func validStatusFilter(status string) bool {
 	switch status {
-	case "", StatusYangi, StatusQabulQilindi, StatusLogistikagaUzatildi, StatusYolda,
+	case "", StatusYangi, StatusQabulQilindi, StatusTayyorTolovKutilmoqda, StatusLogistikagaUzatildi, StatusYolda,
 		StatusYetkazildiTolovKutilmoqda, StatusYakunlandi, StatusForsMajor, StatusKafolatBilanYopildi:
 		return true
 	default:

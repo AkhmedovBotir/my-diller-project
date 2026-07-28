@@ -110,6 +110,51 @@ func (h *Handler) XaridorUploadReceipt(w http.ResponseWriter, r *http.Request) {
 	httputil.JSON(w, http.StatusOK, o)
 }
 
+func (h *Handler) XaridorAgreeInvoice(w http.ResponseWriter, r *http.Request) {
+	claims := auth.ClaimsFromContext(r.Context())
+	id, ok := parsePathID(w, r)
+	if !ok {
+		return
+	}
+
+	o, err := h.service.AgreeInvoiceByXaridor(r.Context(), claims.SubjectID, id)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, o)
+}
+
+func (h *Handler) XaridorGetShartnoma(w http.ResponseWriter, r *http.Request) {
+	claims := auth.ClaimsFromContext(r.Context())
+	manufacturerID, ok := parseURLParamID(w, r, "ishlabchiqaruvchi_id")
+	if !ok {
+		return
+	}
+
+	sh, err := h.service.GetShartnomaForXaridor(r.Context(), claims.SubjectID, manufacturerID)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, sh)
+}
+
+func (h *Handler) XaridorAgreeShartnoma(w http.ResponseWriter, r *http.Request) {
+	claims := auth.ClaimsFromContext(r.Context())
+	manufacturerID, ok := parseURLParamID(w, r, "ishlabchiqaruvchi_id")
+	if !ok {
+		return
+	}
+
+	sh, err := h.service.AgreeShartnomaForXaridor(r.Context(), claims.SubjectID, manufacturerID)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, sh)
+}
+
 func (h *Handler) XaridorUploadAdvanceReceipt(w http.ResponseWriter, r *http.Request) {
 	claims := auth.ClaimsFromContext(r.Context())
 	id, ok := parsePathID(w, r)
@@ -216,6 +261,52 @@ func (h *Handler) ManufacturerConfirmAdvance(w http.ResponseWriter, r *http.Requ
 	}
 
 	o, err := h.service.ConfirmAdvanceByManufacturer(r.Context(), claims.SubjectID, id)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, o)
+}
+
+func (h *Handler) ManufacturerRejectAdvanceReceipt(w http.ResponseWriter, r *http.Request) {
+	claims := auth.ClaimsFromContext(r.Context())
+	id, ok := parsePathID(w, r)
+	if !ok {
+		return
+	}
+
+	var input RejectReceiptInput
+	if r.ContentLength > 0 {
+		if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
+			httputil.FieldError(w, http.StatusBadRequest, field, message)
+			return
+		}
+	}
+
+	o, err := h.service.RejectAdvanceReceiptByManufacturer(r.Context(), claims.SubjectID, id, input.Note)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, o)
+}
+
+func (h *Handler) ManufacturerRejectPaymentReceipt(w http.ResponseWriter, r *http.Request) {
+	claims := auth.ClaimsFromContext(r.Context())
+	id, ok := parsePathID(w, r)
+	if !ok {
+		return
+	}
+
+	var input RejectReceiptInput
+	if r.ContentLength > 0 {
+		if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
+			httputil.FieldError(w, http.StatusBadRequest, field, message)
+			return
+		}
+	}
+
+	o, err := h.service.RejectPaymentReceiptByManufacturer(r.Context(), claims.SubjectID, id, input.Note)
 	if err != nil {
 		h.writeError(w, err)
 		return
@@ -699,6 +790,28 @@ func (h *Handler) AdminConfirmCommissionPaid(w http.ResponseWriter, r *http.Requ
 	httputil.JSON(w, http.StatusOK, c)
 }
 
+func (h *Handler) AdminRejectCommission(w http.ResponseWriter, r *http.Request) {
+	id, ok := parsePathID(w, r)
+	if !ok {
+		return
+	}
+
+	var input RejectCommissionInput
+	if r.ContentLength > 0 {
+		if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
+			httputil.FieldError(w, http.StatusBadRequest, field, message)
+			return
+		}
+	}
+
+	c, err := h.service.RejectCommissionByAdmin(r.Context(), id, input.Note)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, c)
+}
+
 func (h *Handler) AdminGetSettings(w http.ResponseWriter, r *http.Request) {
 	s, err := h.service.GetSettings(r.Context())
 	if err != nil {
@@ -765,9 +878,13 @@ func parseReceiptFile(r *http.Request) (*multipart.FileHeader, error) {
 }
 
 func parsePathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	return parseURLParamID(w, r, "id")
+}
+
+func parseURLParamID(w http.ResponseWriter, r *http.Request, param string) (int64, bool) {
+	id, err := strconv.ParseInt(chi.URLParam(r, param), 10, 64)
 	if err != nil || id <= 0 {
-		httputil.FieldError(w, http.StatusBadRequest, "id", "ID musbat butun son bo'lishi kerak")
+		httputil.FieldError(w, http.StatusBadRequest, param, param+" musbat butun son bo'lishi kerak")
 		return 0, false
 	}
 	return id, true
@@ -811,9 +928,9 @@ func (h *Handler) writeError(w http.ResponseWriter, err error) {
 			return
 		}
 		httputil.Error(w, http.StatusBadRequest, "Kiritilgan ma'lumotlar noto'g'ri")
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrCommissionNotFound), errors.Is(err, ErrDebtNotFound):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrCommissionNotFound), errors.Is(err, ErrDebtNotFound), errors.Is(err, ErrShartnomaNotFound):
 		httputil.Error(w, http.StatusNotFound, err.Error())
-	case errors.Is(err, ErrForbidden):
+	case errors.Is(err, ErrForbidden), errors.Is(err, ErrManufacturerCannotMarkPaid):
 		httputil.Error(w, http.StatusForbidden, err.Error())
 	case errors.Is(err, ErrProductNotFound):
 		httputil.Error(w, http.StatusBadRequest, err.Error())

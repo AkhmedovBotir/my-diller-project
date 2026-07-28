@@ -1,20 +1,7 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
-import markerIcon from 'leaflet/dist/images/marker-icon.png'
-import markerShadow from 'leaflet/dist/images/marker-shadow.png'
-
-let iconsConfigured = false
-function ensureDefaultIcon() {
-  if (iconsConfigured) return
-  iconsConfigured = true
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: markerIcon2x,
-    iconUrl: markerIcon,
-    shadowUrl: markerShadow,
-  })
-}
+import { ensureLeafletDefaultIcon } from './leafletIcon'
 
 export interface OrderMapPoint {
   lat: number
@@ -27,7 +14,7 @@ export function OrderMap({ points, className }: { points: OrderMapPoint[]; class
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    ensureDefaultIcon()
+    ensureLeafletDefaultIcon()
     if (!containerRef.current || points.length === 0) return
 
     const map = L.map(containerRef.current, { scrollWheelZoom: false })

@@ -5,8 +5,19 @@ export interface Ishlabchiqaruvchi {
   last_name: string
   phone: string
   username: string
+  stir: string
+  bank_account: string
+  bank_name: string
+  mfo: string
+  address: string
+  lat: number | null
+  lng: number | null
   created_at: string
   updated_at: string
+}
+
+export interface IshlabchiqaruvchiProfile extends Ishlabchiqaruvchi {
+  profile_complete: boolean
 }
 
 export interface IshlabchiqaruvchiInput {
@@ -15,7 +26,21 @@ export interface IshlabchiqaruvchiInput {
   last_name: string
   phone: string
   username: string
+  stir?: string
+  bank_account?: string
+  bank_name?: string
+  mfo?: string
+  address?: string
+  lat?: number | null
+  lng?: number | null
   password?: string
+}
+
+export interface RegisterInput {
+  company_name: string
+  stir: string
+  phone: string
+  password: string
 }
 
 export interface LoginResponse {
@@ -44,7 +69,7 @@ export type ProductStatus = 'pending' | 'approved' | 'rejected'
 
 export type PaymentTerm = 'prepay_100' | 'deferred' | 'pod_zakaz_50_50'
 
-export type PaymentPhase = 'none' | 'awaiting_advance' | 'awaiting_final' | 'completed'
+export type PaymentPhase = 'none' | 'awaiting_advance' | 'advance_done' | 'awaiting_final' | 'paid'
 
 export type ProductSpecs = Record<string, string>
 
@@ -57,6 +82,7 @@ export interface Product {
   code: string
   ishlabchiqaruvchi_id: number
   name: string
+  city: string
   description: QuillDelta | string
   category_id: number
   subcategory_id: number
@@ -76,7 +102,9 @@ export interface Product {
 }
 
 export interface ProductCreateInput {
+  code: string
   name: string
+  city: string
   description: QuillDelta | string
   category_id: number
   subcategory_id: number
@@ -90,7 +118,9 @@ export interface ProductCreateInput {
 }
 
 export interface ProductUpdateInput {
+  code: string
   name: string
+  city: string
   description: QuillDelta | string
   category_id: number
   subcategory_id: number
@@ -106,6 +136,7 @@ export interface ProductUpdateInput {
 export type OrderStatus =
   | 'yangi'
   | 'qabul_qilindi'
+  | 'tayyor_tolov_kutilmoqda'
   | 'logistikaga_uzatildi'
   | 'yolda'
   | 'yetkazildi_tolov_kutilmoqda'
@@ -167,7 +198,7 @@ export interface Order {
   items?: OrderItem[]
 }
 
-export type CommissionStatus = 'pending' | 'paid' | 'waived'
+export type CommissionStatus = 'pending' | 'submitted' | 'paid' | 'waived'
 
 export interface Commission {
   id: number

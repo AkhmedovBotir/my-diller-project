@@ -39,10 +39,20 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 		r.Post("/", m.handler.XaridorCreate)
 		r.Get("/{id}", m.handler.XaridorGet)
 		r.Post("/{id}/receive", m.handler.XaridorReceive)
+		r.Post("/{id}/agree-invoice", m.handler.XaridorAgreeInvoice)
 		r.Post("/{id}/upload-receipt", m.handler.XaridorUploadReceipt)
 		r.Post("/{id}/upload-advance-receipt", m.handler.XaridorUploadAdvanceReceipt)
 		r.Get("/{id}/contract.pdf", m.handler.XaridorContractPDF)
 		r.Get("/{id}/invoice.pdf", m.handler.XaridorInvoicePDF)
+	})
+
+	// Xaridor — xaridor-zavod umumiy shartnomasi
+	r.Route("/xaridor/shartnomalar", func(r chi.Router) {
+		r.Use(auth.Middleware(m.jwtSecret))
+		r.Use(auth.RequireSubject(auth.SubjectXaridor))
+
+		r.Get("/{ishlabchiqaruvchi_id}", m.handler.XaridorGetShartnoma)
+		r.Post("/{ishlabchiqaruvchi_id}/agree", m.handler.XaridorAgreeShartnoma)
 	})
 
 	// Ishlab chiqaruvchi — buyurtmalarni bajarish
@@ -54,6 +64,8 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 		r.Get("/{id}", m.handler.ManufacturerGet)
 		r.Post("/{id}/accept", m.handler.ManufacturerAccept)
 		r.Post("/{id}/confirm-advance", m.handler.ManufacturerConfirmAdvance)
+		r.Post("/{id}/reject-advance-receipt", m.handler.ManufacturerRejectAdvanceReceipt)
+		r.Post("/{id}/reject-payment-receipt", m.handler.ManufacturerRejectPaymentReceipt)
 		r.Post("/{id}/ready", m.handler.ManufacturerReady)
 		r.Post("/{id}/ship", m.handler.ManufacturerShip)
 		r.Post("/{id}/confirm-payment", m.handler.ManufacturerConfirmPayment)
@@ -141,6 +153,7 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 
 		r.Get("/", m.handler.AdminListCommissions)
 		r.Post("/{id}/confirm-paid", m.handler.AdminConfirmCommissionPaid)
+		r.Post("/{id}/reject", m.handler.AdminRejectCommission)
 	})
 
 	// Admin — platforma sozlamalari (o'zgartirish faqat bosh admin uchun)

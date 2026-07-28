@@ -265,6 +265,7 @@ function QuickEditModal({
   const { showSnackbar } = useSnackbar()
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [city, setCity] = useState(product.city)
   const [price, setPrice] = useState(String(product.price))
   const [quantity, setQuantity] = useState(String(product.quantity))
   const [moq, setMoq] = useState(String(product.moq))
@@ -275,6 +276,13 @@ function QuickEditModal({
     event.preventDefault()
     setSaving(true)
     setErrorField(undefined)
+
+    if (!city.trim()) {
+      setErrorField('city')
+      showSnackbar('Shahar kiritilishi shart', 'error')
+      setSaving(false)
+      return
+    }
 
     const parsedMoq = Number(moq)
     if (!Number.isFinite(parsedMoq) || parsedMoq < 1) {
@@ -295,6 +303,7 @@ function QuickEditModal({
     try {
       await api.updateProduct(product.id, {
         name: product.name,
+        city: city.trim(),
         description: product.description,
         category_id: product.category_id,
         subcategory_id: product.subcategory_id,
@@ -328,6 +337,14 @@ function QuickEditModal({
         </div>
 
         <div className="grid gap-5 px-6 py-5 sm:grid-cols-2">
+          <Field
+            name="city"
+            label="Shahar"
+            value={city}
+            onChange={setCity}
+            invalid={errorField === 'city'}
+            className="sm:col-span-2"
+          />
           <Field
             name="price"
             label="Narx"

@@ -16,6 +16,7 @@ const FILTERS: Array<[StatusFilter, string]> = [
   ['all', 'Barchasi'],
   ['yangi', 'Yangi'],
   ['qabul_qilindi', 'Qabul qilindi'],
+  ['tayyor_tolov_kutilmoqda', 'Yakuniy to‘lov kutilmoqda'],
   ['logistikaga_uzatildi', 'Logistikada'],
   ['yolda', 'Yo‘lda'],
   ['yetkazildi_tolov_kutilmoqda', 'To‘lov kutilmoqda'],

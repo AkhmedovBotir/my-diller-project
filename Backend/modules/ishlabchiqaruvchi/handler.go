@@ -36,6 +36,22 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	httputil.JSON(w, http.StatusOK, resp)
 }
 
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
+	var input RegisterInput
+	if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
+		httputil.FieldError(w, http.StatusBadRequest, field, message)
+		return
+	}
+
+	resp, err := h.service.Register(r.Context(), input)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusCreated, resp)
+}
+
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	claims := auth.ClaimsFromContext(r.Context())
 
@@ -45,7 +61,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, item)
+	httputil.JSON(w, http.StatusOK, ProfileResponse{Ishlabchiqaruvchi: item, ProfileComplete: ProfileComplete(item)})
 }
 
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +79,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, item)
+	httputil.JSON(w, http.StatusOK, ProfileResponse{Ishlabchiqaruvchi: item, ProfileComplete: ProfileComplete(item)})
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {

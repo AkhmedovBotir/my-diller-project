@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle,
@@ -10,6 +10,7 @@ import {
   Percent,
   Receipt,
   X,
+  XCircle,
 } from 'lucide-react'
 import { api, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
@@ -28,6 +29,7 @@ export function CommissionsPage() {
   const [offset, setOffset] = useState(0)
   const [viewingInvoice, setViewingInvoice] = useState<Commission | null>(null)
   const [confirmingId, setConfirmingId] = useState<number | null>(null)
+  const [rejecting, setRejecting] = useState<Commission | null>(null)
   const limit = 20
 
   const loadItems = useCallback(async () => {
@@ -68,6 +70,12 @@ export function CommissionsPage() {
     }
   }
 
+  function handleRejected(updated: Commission) {
+    setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+    setRejecting(null)
+    showSnackbar('Komissiya kvitansiyasi rad etildi, holat qayta “Kutilmoqda” qilindi')
+  }
+
   return (
     <div className="space-y-5">
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -106,6 +114,7 @@ export function CommissionsPage() {
             {([
               ['all', 'Barchasi'],
               ['pending', 'Kutilmoqda'],
+              ['submitted', 'Tekshirilmoqda'],
               ['paid', 'To‘langan'],
               ['waived', 'Bekor qilingan'],
             ] as const).map(([value, label]) => (
@@ -197,24 +206,30 @@ export function CommissionsPage() {
                               <Receipt size={16} />
                             </a>
                           )}
-                          {item.status === 'pending' && (
-                            <button
-                              onClick={() => void confirmPaid(item)}
-                              disabled={!item.payment_receipt_url || confirmingId === item.id}
-                              className="flex h-9 items-center gap-1.5 rounded-lg bg-[#173c32] px-3 text-xs font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
-                              title={
-                                item.payment_receipt_url
-                                  ? 'To‘langan deb tasdiqlash'
-                                  : 'Kvitansiya hali yuklanmagan'
-                              }
-                            >
-                              {confirmingId === item.id ? (
-                                <LoaderCircle className="animate-spin" size={14} />
-                              ) : (
-                                <Check size={14} />
-                              )}
-                              Tasdiqlash
-                            </button>
+                          {item.status === 'submitted' && (
+                            <>
+                              <button
+                                onClick={() => void confirmPaid(item)}
+                                disabled={confirmingId === item.id}
+                                className="flex h-9 items-center gap-1.5 rounded-lg bg-[#173c32] px-3 text-xs font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+                                title="To‘langan deb tasdiqlash"
+                              >
+                                {confirmingId === item.id ? (
+                                  <LoaderCircle className="animate-spin" size={14} />
+                                ) : (
+                                  <Check size={14} />
+                                )}
+                                Tasdiqlash
+                              </button>
+                              <button
+                                onClick={() => setRejecting(item)}
+                                className="flex h-9 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-xs font-bold text-amber-700 transition hover:bg-amber-100"
+                                title="Qabul qilmaslik"
+                              >
+                                <XCircle size={14} />
+                                Qabul qilmaslik
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -255,8 +270,103 @@ export function CommissionsPage() {
         {viewingInvoice && (
           <InvoiceModal commission={viewingInvoice} onClose={() => setViewingInvoice(null)} />
         )}
+        {rejecting && (
+          <RejectCommissionModal
+            commission={rejecting}
+            onClose={() => setRejecting(null)}
+            onRejected={handleRejected}
+          />
+        )}
       </AnimatePresence>
     </div>
+  )
+}
+
+function RejectCommissionModal({
+  commission,
+  onClose,
+  onRejected,
+}: {
+  commission: Commission
+  onClose: () => void
+  onRejected: (updated: Commission) => void
+}) {
+  const { showSnackbar } = useSnackbar()
+  const [note, setNote] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    setLoading(true)
+    try {
+      const updated = await api.rejectCommission(commission.id, note.trim() || undefined)
+      onRejected(updated)
+    } catch (rejectError) {
+      showSnackbar(getErrorMessage(rejectError), 'error')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 12 }}
+        className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div className="flex items-center gap-3">
+            <div className="grid size-10 place-items-center rounded-xl bg-amber-50 text-amber-600">
+              <XCircle size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold">Kvitansiyani qabul qilmaslik</h3>
+              <p className="mt-0.5 text-xs text-slate-400">Buyurtma #{commission.buyurtma_id}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100">
+            <X size={19} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+          <p className="text-sm leading-6 text-slate-500">
+            Rad etilgandan so‘ng komissiya qayta “Kutilmoqda” holatiga o‘tadi va ishlab chiqaruvchi yangi
+            kvitansiya yuklashi kerak bo‘ladi.
+          </p>
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold text-slate-600">
+              Sabab <span className="font-medium text-slate-400">(ixtiyoriy)</span>
+            </span>
+            <textarea
+              rows={3}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Masalan: Kvitansiya sifati past yoki summa mos kelmadi"
+              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#397461] focus:ring-4 focus:ring-[#397461]/8"
+            />
+          </label>
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="h-11 rounded-xl border border-slate-200 px-5 text-sm font-bold text-slate-600">
+              Bekor qilish
+            </button>
+            <button
+              disabled={loading}
+              className="flex h-11 items-center gap-2 rounded-xl bg-amber-500 px-5 text-sm font-bold text-white disabled:opacity-60"
+            >
+              {loading && <LoaderCircle className="animate-spin" size={17} />}
+              {loading ? 'Yuborilmoqda...' : 'Qabul qilmaslik'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
   )
 }
 

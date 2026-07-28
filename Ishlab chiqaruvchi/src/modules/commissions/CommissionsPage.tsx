@@ -5,6 +5,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   FileText,
   LoaderCircle,
   Percent,
@@ -26,7 +27,6 @@ export function CommissionsPage() {
   const [offset, setOffset] = useState(0)
   const [viewingInvoice, setViewingInvoice] = useState<Commission | null>(null)
   const [uploadingFor, setUploadingFor] = useState<Commission | null>(null)
-  const [markingPaidId, setMarkingPaidId] = useState<number | null>(null)
   const limit = 20
 
   const loadItems = useCallback(async () => {
@@ -50,26 +50,14 @@ export function CommissionsPage() {
 
   const totals = useMemo(() => {
     const pending = items.filter((item) => item.status === 'pending').reduce((sum, item) => sum + item.amount, 0)
+    const submitted = items.filter((item) => item.status === 'submitted').reduce((sum, item) => sum + item.amount, 0)
     const paid = items.filter((item) => item.status === 'paid').reduce((sum, item) => sum + item.amount, 0)
-    return { pending, paid }
+    return { pending, submitted, paid }
   }, [items])
-
-  async function markPaid(commission: Commission) {
-    setMarkingPaidId(commission.id)
-    try {
-      const updated = await api.markCommissionPaid(commission.id)
-      setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-      showSnackbar('Komissiya to‘langan deb belgilandi')
-    } catch (markError) {
-      showSnackbar(getErrorMessage(markError), 'error')
-    } finally {
-      setMarkingPaidId(null)
-    }
-  }
 
   return (
     <div className="space-y-5">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200/80 bg-white p-5">
           <div className="mb-3 grid size-10 place-items-center rounded-xl bg-[#eff8f3] text-[#397461]">
             <Percent size={18} />
@@ -83,6 +71,13 @@ export function CommissionsPage() {
           </div>
           <p className="text-xs text-slate-400">To‘lanishi kerak</p>
           <p className="mt-1 text-lg font-bold text-slate-800">{formatMoney(totals.pending)}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5">
+          <div className="mb-3 grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-600">
+            <Clock size={18} />
+          </div>
+          <p className="text-xs text-slate-400">Admin tasdig‘ini kutmoqda</p>
+          <p className="mt-1 text-lg font-bold text-slate-800">{formatMoney(totals.submitted)}</p>
         </div>
         <div className="rounded-2xl border border-slate-200/80 bg-white p-5">
           <div className="mb-3 grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -159,33 +154,30 @@ export function CommissionsPage() {
                             </button>
                           )}
                           {item.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => setUploadingFor(item)}
-                                className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
-                                title="Kvitansiya yuklash"
-                              >
-                                <UploadCloud size={14} />
-                                {item.payment_receipt_url ? 'Qayta yuklash' : 'Kvitansiya'}
-                              </button>
-                              <button
-                                onClick={() => void markPaid(item)}
-                                disabled={!item.payment_receipt_url || markingPaidId === item.id}
-                                className="flex h-9 items-center gap-1.5 rounded-lg bg-[#173c32] px-3 text-xs font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
-                                title={
-                                  item.payment_receipt_url
-                                    ? 'To‘langan deb belgilash'
-                                    : 'Avval kvitansiya yuklang'
-                                }
-                              >
-                                {markingPaidId === item.id ? (
-                                  <LoaderCircle className="animate-spin" size={14} />
-                                ) : (
-                                  <Check size={14} />
-                                )}
-                                To‘landi
-                              </button>
-                            </>
+                            <button
+                              onClick={() => setUploadingFor(item)}
+                              className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                              title="Kvitansiya yuklash"
+                            >
+                              <UploadCloud size={14} />
+                              Kvitansiya yuklash
+                            </button>
+                          )}
+                          {item.status === 'submitted' && (
+                            <button
+                              disabled
+                              className="flex h-9 cursor-not-allowed items-center gap-1.5 rounded-lg bg-slate-100 px-3 text-xs font-bold text-slate-400"
+                              title="Admin tasdig‘ini kutmoqda"
+                            >
+                              <Clock size={14} />
+                              Admin tasdig‘ini kutmoqda
+                            </button>
+                          )}
+                          {item.status === 'paid' && (
+                            <span className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-emerald-600">
+                              <Check size={14} />
+                              To‘langan
+                            </span>
                           )}
                         </div>
                       </td>

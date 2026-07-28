@@ -77,7 +77,4 @@ export const paymentTermLabel: Record<PaymentTerm, string> = {
 
 export const SPEC_FIELDS: Array<{ key: string; label: string }> = [
   { key: 'size', label: 'O‘lcham' },
-  { key: 'color', label: 'Rang' },
-  { key: 'material', label: 'Material' },
-  { key: 'pack_qty', label: 'Qadoq soni' },
 ]

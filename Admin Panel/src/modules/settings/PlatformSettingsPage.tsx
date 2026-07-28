@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, LoaderCircle, Percent, Save, Sparkles, Wallet } from 'lucide-react'
+import { AlertTriangle, LoaderCircle, Percent, Save, ShieldCheck, Sparkles, Wallet } from 'lucide-react'
 import { api, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
 import { useSnackbar } from '../../shared/Snackbar'
@@ -39,6 +39,7 @@ export function PlatformSettingsPage() {
         commission_percent: Number(form.get('commission_percent')),
         free_promo_active: form.get('free_promo_active') === 'on',
         reserve_balance: Number(form.get('reserve_balance')),
+        curator_percent: Number(form.get('curator_percent')),
       })
       setSettings(updated)
       showSnackbar('Platforma sozlamalari yangilandi')
@@ -119,6 +120,23 @@ export function PlatformSettingsPage() {
               step="1000"
               required
               defaultValue={settings.reserve_balance}
+              className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-4 text-sm outline-none transition focus:border-[#397461] focus:bg-white focus:ring-4 focus:ring-[#397461]/8"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-600">
+              <ShieldCheck size={14} className="text-[#397461]" />
+              Kurator komissiyasi (%)
+            </span>
+            <input
+              name="curator_percent"
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              required
+              defaultValue={settings.curator_percent}
               className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-4 text-sm outline-none transition focus:border-[#397461] focus:bg-white focus:ring-4 focus:ring-[#397461]/8"
             />
           </label>
