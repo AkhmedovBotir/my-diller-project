@@ -136,7 +136,15 @@ func scanCommission(row pgx.Row) (*Commission, error) {
 
 func scanSettings(row pgx.Row) (*PlatformSettings, error) {
 	var s PlatformSettings
-	err := row.Scan(&s.ID, &s.CommissionPercent, &s.FreePromoActive, &s.ReserveBalance, &s.CuratorPercent, &s.UpdatedAt)
+	err := row.Scan(
+		&s.ID,
+		&s.CommissionPercent,
+		&s.FreePromoActive,
+		&s.ReserveBalance,
+		&s.CuratorPercent,
+		&s.SupportTelegram,
+		&s.UpdatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -820,7 +828,7 @@ func (r *Repository) guarantee(ctx context.Context, q querier, id, adminID int64
 
 func (r *Repository) getSettings(ctx context.Context, q querier) (*PlatformSettings, error) {
 	s, err := scanSettings(q.QueryRow(ctx, `
-		SELECT id, commission_percent, free_promo_active, reserve_balance, curator_percent, updated_at
+		SELECT id, commission_percent, free_promo_active, reserve_balance, curator_percent, support_telegram, updated_at
 		FROM platform_settings ORDER BY id LIMIT 1`))
 	if err != nil {
 		return nil, mapError(err, "platforma sozlamalarini olib bo'lmadi")
@@ -835,10 +843,15 @@ func (r *Repository) GetSettings(ctx context.Context) (*PlatformSettings, error)
 func (r *Repository) UpdateSettings(ctx context.Context, input UpdatePlatformSettingsInput) (*PlatformSettings, error) {
 	s, err := scanSettings(r.pool.QueryRow(ctx, `
 		UPDATE platform_settings
-		SET commission_percent = $1, free_promo_active = $2, reserve_balance = $3, curator_percent = $4, updated_at = now()
+		SET commission_percent = $1,
+		    free_promo_active = $2,
+		    reserve_balance = $3,
+		    curator_percent = $4,
+		    support_telegram = $5,
+		    updated_at = now()
 		WHERE id = (SELECT id FROM platform_settings ORDER BY id LIMIT 1)
-		RETURNING id, commission_percent, free_promo_active, reserve_balance, curator_percent, updated_at`,
-		input.CommissionPercent, input.FreePromoActive, input.ReserveBalance, input.CuratorPercent,
+		RETURNING id, commission_percent, free_promo_active, reserve_balance, curator_percent, support_telegram, updated_at`,
+		input.CommissionPercent, input.FreePromoActive, input.ReserveBalance, input.CuratorPercent, input.SupportTelegram,
 	))
 	if err != nil {
 		return nil, mapError(err, "platforma sozlamalarini yangilab bo'lmadi")

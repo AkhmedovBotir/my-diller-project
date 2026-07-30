@@ -55,13 +55,13 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	claims := auth.ClaimsFromContext(r.Context())
 
-	item, err := h.service.GetByID(r.Context(), claims.SubjectID)
+	item, err := h.service.GetProfile(r.Context(), claims.SubjectID)
 	if err != nil {
 		h.writeError(w, err)
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, ProfileResponse{Ishlabchiqaruvchi: item, ProfileComplete: ProfileComplete(item)})
+	httputil.JSON(w, http.StatusOK, item)
 }
 
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +79,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, ProfileResponse{Ishlabchiqaruvchi: item, ProfileComplete: ProfileComplete(item)})
+	httputil.JSON(w, http.StatusOK, item)
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {

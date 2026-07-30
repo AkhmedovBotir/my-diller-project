@@ -1,11 +1,11 @@
-/** Kabinet URL'lari — DNS (milliycrm.uz) bilan mos */
+/** Kabinet URL'lari — DNS (mydiller.uz) bilan mos */
 export const CABINETS = {
-  user: 'https://user.milliycrm.uz',
-  zavod: 'https://zavod.milliycrm.uz',
-  yetkazish: 'https://yetkazish.milliycrm.uz',
-  kurator: 'https://kurator.milliycrm.uz',
-  admin: 'https://admin.milliycrm.uz',
+  user: 'https://user.mydiller.uz',
+  zavod: 'https://zavod.mydiller.uz',
+  yetkazish: 'https://yetkazish.mydiller.uz',
+  kurator: 'https://kurator.mydiller.uz',
+  admin: 'https://admin.mydiller.uz',
 }
 
 /** Backend API manzili */
-export const API_URL = 'https://api.milliycrm.uz/api/v1'
+export const API_URL = 'https://api.mydiller.uz/api/v1'

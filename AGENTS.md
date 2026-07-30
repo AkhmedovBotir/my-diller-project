@@ -1,17 +1,17 @@
 # My Diller — agent qo‘llanmasi
 
-Monorepo: B2B ulgurji savdo (`milliycrm.uz`).
+Monorepo: B2B ulgurji savdo (`mydiller.uz`).
 
 ## Tezkor xarita
 
 ```
-landing/              → milliycrm.uz
-admin/                → admin.milliycrm.uz
-admin-kurator/        → kurator.milliycrm.uz
-ishlab chiqaruvchi/   → zavod.milliycrm.uz
-foydalanuvchi/        → user.milliycrm.uz
-dostavka/             → yetkazish.milliycrm.uz
-backend/              → api.milliycrm.uz  (Go, :8080)
+landing/              → mydiller.uz
+admin/                → admin.mydiller.uz
+admin-kurator/        → kurator.mydiller.uz
+ishlab chiqaruvchi/   → zavod.mydiller.uz
+foydalanuvchi/        → user.mydiller.uz
+dostavka/             → yetkazish.mydiller.uz
+backend/              → api.mydiller.uz  (Go, :8080)
 ```
 
 ## Konfig

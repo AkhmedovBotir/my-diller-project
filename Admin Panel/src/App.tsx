@@ -9,11 +9,13 @@ import { DashboardPage } from './modules/dashboard/DashboardPage'
 import { DebtsPage } from './modules/debts/DebtsPage'
 import { DostavkaPage } from './modules/dostavka/DostavkaPage'
 import { IshlabchiqaruvchilarPage } from './modules/ishlabchiqaruvchilar/IshlabchiqaruvchilarPage'
+import { KuratorlarPage } from './modules/kuratorlar/KuratorlarPage'
 import { KuratorTolovSorovlariPage } from './modules/kuratorTolovSorovlari/KuratorTolovSorovlariPage'
 import { OrderDetailPage } from './modules/orders/OrderDetailPage'
 import { OrdersPage } from './modules/orders/OrdersPage'
 import { ProductsPage } from './modules/products/ProductsPage'
 import { ProfilePage } from './modules/profile/ProfilePage'
+import { RegionsPage } from './modules/regions/RegionsPage'
 import { PlatformSettingsPage } from './modules/settings/PlatformSettingsPage'
 import { XaridorlarPage } from './modules/xaridorlar/XaridorlarPage'
 import type { AdminRole } from './shared/types'
@@ -70,10 +72,12 @@ export default function App() {
       <Route path="/general" element={<ProtectedArea role="general" />}>
         <Route index element={<DashboardPage />} />
         <Route path="admins" element={<AdminsPage />} />
+        <Route path="kuratorlar" element={<KuratorlarPage />} />
         <Route path="ishlabchiqaruvchilar" element={<IshlabchiqaruvchilarPage />} />
         <Route path="xaridorlar" element={<XaridorlarPage />} />
         <Route path="dostavka" element={<DostavkaPage />} />
         <Route path="categories" element={<CategoriesPage />} />
+        <Route path="regions" element={<RegionsPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />

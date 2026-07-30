@@ -18,7 +18,7 @@ type Module struct {
 
 func NewModule(pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration) *Module {
 	repo := NewRepository(pool)
-	service := NewService(repo, jwtSecret, jwtTTL)
+	service := NewService(repo, pool, jwtSecret, jwtTTL)
 	handler := NewHandler(service)
 
 	return &Module{

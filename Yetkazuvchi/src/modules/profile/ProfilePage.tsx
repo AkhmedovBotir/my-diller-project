@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { KeyRound, LoaderCircle, Save, Truck, UserRound } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
+import { RegionCascade } from '../../shared/RegionCascade'
 import { useSnackbar } from '../../shared/Snackbar'
 import { useAuth } from '../auth/AuthContext'
 
@@ -11,6 +12,7 @@ export function ProfilePage() {
   const { showSnackbar } = useSnackbar()
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [mfyId, setMfyId] = useState<number | null>(user?.mfy_id ?? null)
 
   if (!user) return null
 
@@ -22,15 +24,18 @@ export function ProfilePage() {
     const form = new FormData(formElement)
     try {
       const password = String(form.get('password') ?? '').trim()
-      const updated = await api.updateProfile({
+      await api.updateProfile({
         company_name: String(form.get('company_name')),
         first_name: String(form.get('first_name')),
         last_name: String(form.get('last_name')),
         phone: String(form.get('phone')),
         username: String(form.get('username')),
+        mfy_id: mfyId,
         ...(password ? { password } : {}),
       })
-      setUser(updated)
+      const refreshed = await api.profile()
+      setUser(refreshed)
+      setMfyId(refreshed.mfy_id ?? null)
       showSnackbar('Profil muvaffaqiyatli yangilandi')
       const passwordInput = formElement.elements.namedItem('password')
       if (passwordInput instanceof HTMLInputElement) passwordInput.value = ''
@@ -57,6 +62,14 @@ export function ProfilePage() {
         <div className="mt-7 space-y-4 border-t border-slate-100 pt-6">
           <ProfileMeta label="Kompaniya" value={user.company_name} />
           <ProfileMeta label="Telefon raqami" value={user.phone} />
+          {user.city && <ProfileMeta label="Shahar" value={user.city} />}
+          {user.mfy && <ProfileMeta label="MFY" value={user.mfy} />}
+          {user.kurator && (
+            <ProfileMeta
+              label="Kurator"
+              value={`${user.kurator.first_name} ${user.kurator.last_name} · ${user.kurator.phone}`}
+            />
+          )}
           <ProfileMeta
             label="Ro‘yxatdan o‘tgan"
             value={formatDateTime(user.created_at)}
@@ -81,6 +94,14 @@ export function ProfilePage() {
             <Field name="last_name" label="Familiya" defaultValue={user.last_name} invalid={errorField === 'last_name'} />
             <Field name="phone" label="Telefon raqami" defaultValue={user.phone} type="tel" invalid={errorField === 'phone'} />
             <Field name="username" label="Foydalanuvchi nomi" defaultValue={user.username} invalid={errorField === 'username'} />
+            <div className="sm:col-span-2">
+              <RegionCascade
+                value={mfyId}
+                onChange={setMfyId}
+                required={false}
+                invalid={errorField === 'mfy_id'}
+              />
+            </div>
           </div>
 
           <div className="my-8 border-t border-slate-100" />

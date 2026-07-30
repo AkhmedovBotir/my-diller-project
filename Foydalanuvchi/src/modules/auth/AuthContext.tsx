@@ -8,21 +8,21 @@ import {
   type ReactNode,
 } from 'react'
 import { api, tokenStorage } from '../../shared/api'
-import type { RegisterInput, Xaridor } from '../../shared/types'
+import type { RegisterInput, XaridorProfileResponse } from '../../shared/types'
 
 interface AuthContextValue {
-  user: Xaridor | null
+  user: XaridorProfileResponse | null
   loading: boolean
-  login: (username: string, password: string) => Promise<Xaridor>
-  register: (input: RegisterInput) => Promise<Xaridor>
+  login: (username: string, password: string) => Promise<XaridorProfileResponse>
+  register: (input: RegisterInput) => Promise<XaridorProfileResponse>
   logout: () => void
-  setUser: (user: Xaridor) => void
+  setUser: (user: XaridorProfileResponse) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Xaridor | null>(null)
+  const [user, setUser] = useState<XaridorProfileResponse | null>(null)
   const [loading, setLoading] = useState(Boolean(tokenStorage.get()))
 
   useEffect(() => {
@@ -43,15 +43,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     const result = await api.login(username, password)
     tokenStorage.set(result.token)
-    setUser(result.xaridor)
-    return result.xaridor
+    const profile = await api.profile()
+    setUser(profile)
+    return profile
   }, [])
 
   const register = useCallback(async (input: RegisterInput) => {
     const result = await api.register(input)
     tokenStorage.set(result.token)
-    setUser(result.xaridor)
-    return result.xaridor
+    const profile = await api.profile()
+    setUser(profile)
+    return profile
   }, [])
 
   const logout = useCallback(() => {

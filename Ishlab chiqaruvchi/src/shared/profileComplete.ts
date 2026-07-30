@@ -9,6 +9,8 @@ export function isProfileComplete(user: Ishlabchiqaruvchi | null | undefined): b
     Boolean(user.bank_account?.trim()) &&
     Boolean(user.bank_name?.trim()) &&
     Boolean(user.mfo?.trim()) &&
+    Boolean(user.mfy_id) &&
+    Boolean(user.birth_date) &&
     Boolean(user.address?.trim()) &&
     Boolean(user.first_name?.trim()) &&
     Boolean(user.last_name?.trim()) &&

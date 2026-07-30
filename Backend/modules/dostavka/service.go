@@ -8,17 +8,22 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"diller-backend/internal/pkg/auth"
+	"diller-backend/internal/pkg/kuratorassign"
+	"diller-backend/modules/region"
 )
 
 type Service struct {
 	repo      *Repository
+	pool      *pgxpool.Pool
 	jwtSecret string
 	jwtTTL    time.Duration
 }
 
-func NewService(repo *Repository, jwtSecret string, jwtTTL time.Duration) *Service {
-	return &Service{repo: repo, jwtSecret: jwtSecret, jwtTTL: jwtTTL}
+func NewService(repo *Repository, pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration) *Service {
+	return &Service{repo: repo, pool: pool, jwtSecret: jwtSecret, jwtTTL: jwtTTL}
 }
 
 func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResponse, error) {
@@ -69,6 +74,14 @@ func (s *Service) GetByID(ctx context.Context, id int64) (*Dostavka, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
+func (s *Service) GetProfile(ctx context.Context, id int64) (*ProfileResponse, error) {
+	item, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.buildProfileResponse(ctx, item)
+}
+
 func (s *Service) List(ctx context.Context, limit, offset int) ([]Dostavka, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
@@ -95,7 +108,7 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateInput) (*Dos
 	return s.repo.Update(ctx, id, input, hash)
 }
 
-func (s *Service) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput) (*Dostavka, error) {
+func (s *Service) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput) (*ProfileResponse, error) {
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -108,7 +121,44 @@ func (s *Service) UpdateProfile(ctx context.Context, id int64, input UpdateProfi
 		}
 	}
 
-	return s.repo.UpdateProfile(ctx, id, input, hash)
+	var kuratorID *int64
+	if input.MFYID != nil && *input.MFYID > 0 {
+		labels, err := region.NewRepository(s.pool).ResolveLabels(ctx, *input.MFYID)
+		if err != nil {
+			if errors.Is(err, region.ErrNotFound) {
+				return nil, validationError("mfy_id", "MFY topilmadi")
+			}
+			return nil, err
+		}
+		input.City = labels.City
+		input.MFY = labels.MFY
+		kuratorID, err = kuratorassign.FindByMFYID(ctx, s.pool, *input.MFYID)
+		if err != nil {
+			return nil, fmt.Errorf("kuratorni topib bo'lmadi: %w", err)
+		}
+	} else {
+		input.MFYID = nil
+		input.City = ""
+		input.MFY = ""
+	}
+
+	item, err := s.repo.UpdateProfile(ctx, id, input, hash, kuratorID)
+	if err != nil {
+		return nil, err
+	}
+	return s.buildProfileResponse(ctx, item)
+}
+
+func (s *Service) buildProfileResponse(ctx context.Context, item *Dostavka) (*ProfileResponse, error) {
+	resp := &ProfileResponse{Dostavka: item}
+	if item.KuratorID != nil {
+		k, err := s.repo.GetKuratorSummary(ctx, *item.KuratorID)
+		if err != nil {
+			return nil, err
+		}
+		resp.Kurator = k
+	}
+	return resp, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id int64) error {

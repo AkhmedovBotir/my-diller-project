@@ -16,6 +16,8 @@ import {
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../modules/auth/AuthContext'
 import { NotifSoundToggle } from '../shared/NotifSoundToggle'
+import { MyCurator } from '../shared/MyCurator'
+import { TechnicalHelp } from '../shared/TechnicalHelp'
 import { isProfileComplete } from '../shared/profileComplete'
 import { NotificationsBell } from './NotificationsBell'
 
@@ -90,6 +92,11 @@ export function AppShell() {
           </NavLink>
         ))}
       </nav>
+
+      <div className="mt-auto space-y-2 pt-4">
+        <MyCurator curator={user.kurator} />
+        <TechnicalHelp />
+      </div>
     </div>
   )
 

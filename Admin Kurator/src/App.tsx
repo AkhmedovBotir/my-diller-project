@@ -12,6 +12,7 @@ import { OrderDetailPage } from './modules/orders/OrderDetailPage'
 import { OrdersPage } from './modules/orders/OrdersPage'
 import { ProductsPage } from './modules/products/ProductsPage'
 import { ProfilePage } from './modules/profile/ProfilePage'
+import { VazifalarPage } from './modules/vazifalar/VazifalarPage'
 
 function ProtectedArea() {
   const { user, loading } = useAuth()
@@ -72,6 +73,7 @@ export default function App() {
         <Route path="komissiyalar" element={<KomissiyalarPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="vazifalar" element={<VazifalarPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />

@@ -202,13 +202,17 @@ func (s *Service) Reject(ctx context.Context, adminID, id int64, input RejectInp
 	return s.repo.SetStatus(ctx, id, StatusRejected, input.Note, &adminID)
 }
 
-func (s *Service) ListCatalog(ctx context.Context, categoryID, subcategoryID int64, search string, limit, offset int) ([]Product, error) {
+func (s *Service) ListCatalog(ctx context.Context, categoryID, subcategoryID, ishlabchiqaruvchiID int64, search string, limit, offset int) ([]CatalogProduct, error) {
 	limit, offset = normalizePagination(limit, offset)
-	return s.repo.ListApproved(ctx, categoryID, subcategoryID, strings.TrimSpace(search), limit, offset)
+	return s.repo.ListApproved(ctx, categoryID, subcategoryID, ishlabchiqaruvchiID, strings.TrimSpace(search), limit, offset)
 }
 
-func (s *Service) GetCatalog(ctx context.Context, id int64) (*Product, error) {
-	return s.repo.GetApproved(ctx, id)
+func (s *Service) GetCatalog(ctx context.Context, id int64) (*CatalogProduct, error) {
+	return s.repo.GetApprovedCatalog(ctx, id)
+}
+
+func (s *Service) ListCatalogManufacturers(ctx context.Context) ([]CatalogManufacturer, error) {
+	return s.repo.ListCatalogManufacturers(ctx)
 }
 
 func (s *Service) DeleteByAdmin(ctx context.Context, id int64) error {

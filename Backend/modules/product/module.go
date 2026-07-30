@@ -37,6 +37,7 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 		r.Get("/", m.handler.CatalogList)
 		r.Get("/{id}", m.handler.CatalogGet)
 	})
+	r.Get("/catalog/manufacturers", m.handler.CatalogManufacturers)
 
 	// Ishlab chiqaruvchi mahsulotlari
 	r.Route("/ishlabchiqaruvchi/products", func(r chi.Router) {

@@ -19,6 +19,7 @@ import (
 	"diller-backend/modules/notification"
 	"diller-backend/modules/order"
 	"diller-backend/modules/product"
+	"diller-backend/modules/region"
 	"diller-backend/modules/xaridor"
 )
 
@@ -30,6 +31,7 @@ func NewRouter(
 	dostavkaModule *dostavka.Module,
 	ishlabChiqaruvchiModule *ishlabchiqaruvchi.Module,
 	categoryModule *category.Module,
+	regionModule *region.Module,
 	productModule *product.Module,
 	orderModule *order.Module,
 	notificationModule *notification.Module,
@@ -56,6 +58,7 @@ func NewRouter(
 		dostavkaModule.RegisterRoutes(api)
 		ishlabChiqaruvchiModule.RegisterRoutes(api)
 		categoryModule.RegisterRoutes(api)
+		regionModule.RegisterRoutes(api)
 		productModule.RegisterRoutes(api)
 		orderModule.RegisterRoutes(api)
 		notificationModule.RegisterRoutes(api)

@@ -10,7 +10,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const columns = "id, company_name, first_name, last_name, phone, username, password_hash, created_at, updated_at"
+const columns = `id, company_name, first_name, last_name, phone, username, password_hash,
+	city, mfy, mfy_id, kurator_id, created_at, updated_at`
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -25,6 +26,7 @@ func scanRow(row pgx.Row) (*Dostavka, error) {
 	err := row.Scan(
 		&item.ID, &item.CompanyName, &item.FirstName, &item.LastName,
 		&item.Phone, &item.Username, &item.PasswordHash,
+		&item.City, &item.MFY, &item.MFYID, &item.KuratorID,
 		&item.CreatedAt, &item.UpdatedAt,
 	)
 	if err != nil {
@@ -120,23 +122,40 @@ func (r *Repository) Update(ctx context.Context, id int64, input UpdateInput, pa
 	return item, nil
 }
 
-func (r *Repository) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput, passwordHash string) (*Dostavka, error) {
+func (r *Repository) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput, passwordHash string, kuratorID *int64) (*Dostavka, error) {
 	query := fmt.Sprintf(`
 		UPDATE dostavka_kompaniyalari
 		SET company_name = $1, first_name = $2, last_name = $3, phone = $4, username = $5,
 		    password_hash = COALESCE(NULLIF($6, ''), password_hash),
+		    city = $7, mfy = $8, mfy_id = $9, kurator_id = $10,
 		    updated_at = now()
-		WHERE id = $7
+		WHERE id = $11
 		RETURNING %s`, columns)
 
 	item, err := scanRow(r.pool.QueryRow(ctx, query,
 		input.CompanyName, input.FirstName, input.LastName,
-		input.Phone, input.Username, passwordHash, id,
+		input.Phone, input.Username, passwordHash,
+		input.City, input.MFY, input.MFYID, kuratorID, id,
 	))
 	if err != nil {
 		return nil, mapError(err, "profilni yangilab bo'lmadi")
 	}
 	return item, nil
+}
+
+func (r *Repository) GetKuratorSummary(ctx context.Context, kuratorID int64) (*KuratorSummary, error) {
+	var k KuratorSummary
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, first_name, last_name, phone, username
+		FROM admins WHERE id = $1 AND type = 'kurator'`, kuratorID,
+	).Scan(&k.ID, &k.FirstName, &k.LastName, &k.Phone, &k.Username)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("kurator ma'lumotlarini olib bo'lmadi: %w", err)
+	}
+	return &k, nil
 }
 
 func (r *Repository) Delete(ctx context.Context, id int64) error {

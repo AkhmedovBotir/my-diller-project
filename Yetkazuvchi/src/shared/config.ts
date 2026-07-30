@@ -1,1 +1,1 @@
-export const API_URL = 'https://api.milliycrm.uz/api/v1'
+export const API_URL = 'https://api.mydiller.uz/api/v1'

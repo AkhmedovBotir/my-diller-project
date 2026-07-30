@@ -49,24 +49,62 @@ func ValidateMFO(mfo string) error {
 }
 
 type Xaridor struct {
-	ID            int64     `json:"id"`
-	ShopName      string    `json:"shop_name"`
-	FirstName     string    `json:"first_name"`
-	LastName      string    `json:"last_name"`
-	Phone         string    `json:"phone"`
-	Username      string    `json:"username"`
-	PasswordHash  string    `json:"-"`
-	Stir          string    `json:"stir"`
-	BankAccount   string    `json:"bank_account"`
-	BankName      string    `json:"bank_name"`
-	MFO           string    `json:"mfo"`
-	Address       string    `json:"address"`
-	Lat           *float64  `json:"lat,omitempty"`
-	Lng           *float64  `json:"lng,omitempty"`
-	IsBlocked     bool      `json:"is_blocked"`
-	BlockedReason string    `json:"blocked_reason"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            int64      `json:"id"`
+	ShopName      string     `json:"shop_name"`
+	FirstName     string     `json:"first_name"`
+	LastName      string     `json:"last_name"`
+	Phone         string     `json:"phone"`
+	Username      string     `json:"username"`
+	PasswordHash  string     `json:"-"`
+	Stir          string     `json:"stir"`
+	BankAccount   string     `json:"bank_account"`
+	BankName      string     `json:"bank_name"`
+	MFO           string     `json:"mfo"`
+	City          string     `json:"city"`
+	MFY           string     `json:"mfy"`
+	BirthDate     *time.Time `json:"birth_date,omitempty"`
+	Address       string     `json:"address"`
+	Lat           *float64   `json:"lat,omitempty"`
+	Lng           *float64   `json:"lng,omitempty"`
+	KuratorID     *int64     `json:"kurator_id,omitempty"`
+	MFYID         *int64     `json:"mfy_id,omitempty"`
+	IsBlocked     bool       `json:"is_blocked"`
+	BlockedReason string     `json:"blocked_reason"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+type KuratorSummary struct {
+	ID        int64  `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Phone     string `json:"phone"`
+	Username  string `json:"username"`
+}
+
+type ProfileResponse struct {
+	*Xaridor
+	ProfileComplete bool            `json:"profile_complete"`
+	Kurator         *KuratorSummary   `json:"kurator,omitempty"`
+}
+
+// ProfileComplete profil buyurtma berish uchun to'liq to'ldirilganligini tekshiradi.
+func ProfileComplete(item *Xaridor) bool {
+	if item == nil {
+		return false
+	}
+	return strings.TrimSpace(item.ShopName) != "" &&
+		strings.TrimSpace(item.FirstName) != "" &&
+		strings.TrimSpace(item.LastName) != "" &&
+		strings.TrimSpace(item.Phone) != "" &&
+		item.MFYID != nil && *item.MFYID > 0 &&
+		item.BirthDate != nil &&
+		strings.TrimSpace(item.Stir) != "" &&
+		strings.TrimSpace(item.BankName) != "" &&
+		strings.TrimSpace(item.BankAccount) != "" &&
+		strings.TrimSpace(item.MFO) != "" &&
+		strings.TrimSpace(item.Address) != "" &&
+		item.Lat != nil && item.Lng != nil
 }
 
 type LoginInput struct {
@@ -172,6 +210,10 @@ type UpdateProfileInput struct {
 	LastName    string   `json:"last_name"`
 	Phone       string   `json:"phone"`
 	Username    string   `json:"username"`
+	City        string   `json:"city"`
+	MFY         string   `json:"mfy"`
+	MFYID       *int64   `json:"mfy_id"`
+	BirthDate   string   `json:"birth_date"`
 	Stir        string   `json:"stir"`
 	BankAccount string   `json:"bank_account"`
 	BankName    string   `json:"bank_name"`
@@ -198,6 +240,12 @@ func (i UpdateProfileInput) Validate() error {
 	}
 	if strings.TrimSpace(i.Username) == "" {
 		return validationError("username", "Foydalanuvchi nomi kiritilishi shart")
+	}
+	if i.MFYID == nil || *i.MFYID <= 0 {
+		return validationError("mfy_id", "MFY tanlanishi shart")
+	}
+	if strings.TrimSpace(i.BirthDate) == "" {
+		return validationError("birth_date", "Tug'ilgan sana kiritilishi shart")
 	}
 	if strings.TrimSpace(i.Stir) == "" {
 		return validationError("stir", "STIR kiritilishi shart")

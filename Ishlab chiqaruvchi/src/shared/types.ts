@@ -1,3 +1,20 @@
+export interface KuratorSummary {
+  id: number
+  first_name: string
+  last_name: string
+  phone: string
+  username?: string
+}
+
+export interface Region {
+  id: number
+  parent_id?: number | null
+  name: string
+  code: string
+  type: 'region' | 'district' | 'mfy'
+  status: string
+}
+
 export interface Ishlabchiqaruvchi {
   id: number
   company_name: string
@@ -9,15 +26,21 @@ export interface Ishlabchiqaruvchi {
   bank_account: string
   bank_name: string
   mfo: string
+  city: string
+  mfy: string
+  mfy_id?: number | null
+  birth_date?: string | null
   address: string
   lat: number | null
   lng: number | null
+  kurator_id?: number | null
   created_at: string
   updated_at: string
 }
 
 export interface IshlabchiqaruvchiProfile extends Ishlabchiqaruvchi {
   profile_complete: boolean
+  kurator?: KuratorSummary | null
 }
 
 export interface IshlabchiqaruvchiInput {
@@ -26,6 +49,10 @@ export interface IshlabchiqaruvchiInput {
   last_name: string
   phone: string
   username: string
+  city?: string
+  mfy?: string
+  mfy_id?: number | null
+  birth_date?: string
   stir?: string
   bank_account?: string
   bank_name?: string

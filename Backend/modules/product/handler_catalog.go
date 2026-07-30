@@ -15,6 +15,10 @@ func (h *Handler) CatalogList(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	manufacturerID, ok := parseQueryInt64(w, r, "ishlabchiqaruvchi_id")
+	if !ok {
+		return
+	}
 	limit, ok := parseQueryInt(w, r, "limit")
 	if !ok {
 		return
@@ -29,7 +33,7 @@ func (h *Handler) CatalogList(w http.ResponseWriter, r *http.Request) {
 	}
 	search := r.URL.Query().Get("search")
 
-	items, err := h.service.ListCatalog(r.Context(), categoryID, subcategoryID, search, limit, offset)
+	items, err := h.service.ListCatalog(r.Context(), categoryID, subcategoryID, manufacturerID, search, limit, offset)
 	if err != nil {
 		h.writeError(w, err)
 		return
@@ -49,4 +53,13 @@ func (h *Handler) CatalogGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.JSON(w, http.StatusOK, p)
+}
+
+func (h *Handler) CatalogManufacturers(w http.ResponseWriter, r *http.Request) {
+	items, err := h.service.ListCatalogManufacturers(r.Context())
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, items)
 }

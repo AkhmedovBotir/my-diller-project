@@ -67,6 +67,16 @@ type Product struct {
 	UpdatedAt           time.Time       `json:"updated_at"`
 }
 
+type CatalogProduct struct {
+	Product
+	CompanyName string `json:"company_name"`
+}
+
+type CatalogManufacturer struct {
+	ID          int64  `json:"id"`
+	CompanyName string `json:"company_name"`
+}
+
 type CreateInput struct {
 	Code          string
 	Name          string

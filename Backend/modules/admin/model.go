@@ -40,15 +40,36 @@ func validationError(field, message string) error {
 }
 
 type Admin struct {
-	ID           int64     `json:"id"`
-	FirstName    string    `json:"first_name"`
-	LastName     string    `json:"last_name"`
-	Phone        string    `json:"phone"`
-	Username     string    `json:"username"`
-	PasswordHash string    `json:"-"`
-	Type         string    `json:"type"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                int64      `json:"id"`
+	FirstName         string     `json:"first_name"`
+	LastName          string     `json:"last_name"`
+	Phone             string     `json:"phone"`
+	Username          string     `json:"username"`
+	PasswordHash      string     `json:"-"`
+	Type              string     `json:"type"`
+	City              string     `json:"city"`
+	MFY               string     `json:"mfy"`
+	BirthDate         *time.Time `json:"birth_date,omitempty"`
+	ResidenceAddress  string     `json:"residence_address"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+type ProfileResponse struct {
+	*Admin
+	ProfileComplete bool `json:"profile_complete"`
+}
+
+// ProfileComplete kurator/admin profil to'liqligini tekshiradi.
+func ProfileComplete(a *Admin) bool {
+	if a == nil {
+		return false
+	}
+	if a.Type != TypeKurator {
+		return true
+	}
+	return a.BirthDate != nil &&
+		strings.TrimSpace(a.ResidenceAddress) != ""
 }
 
 type LoginInput struct {
@@ -135,10 +156,14 @@ func (i UpdateAdminInput) Validate() error {
 }
 
 type UpdateProfileInput struct {
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Phone     string `json:"phone"`
-	Username  string `json:"username"`
+	FirstName        string `json:"first_name"`
+	LastName         string `json:"last_name"`
+	Phone            string `json:"phone"`
+	Username         string `json:"username"`
+	City             string `json:"city"`
+	MFY              string `json:"mfy"`
+	BirthDate        string `json:"birth_date"` // YYYY-MM-DD
+	ResidenceAddress string `json:"residence_address"`
 	// Password bo'sh bo'lsa o'zgartirilmaydi
 	Password string `json:"password,omitempty"`
 }

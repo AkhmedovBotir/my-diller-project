@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Bell,
+  Briefcase,
   Building2,
   ChevronDown,
   Factory,
@@ -21,9 +22,12 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api } from '../shared/api'
 import { useAuth } from '../modules/auth/AuthContext'
 import { NotifSoundToggle } from '../shared/NotifSoundToggle'
+import { MyCurator } from '../shared/MyCurator'
+import { TechnicalHelp } from '../shared/TechnicalHelp'
 import { playNotificationBeep } from '../shared/notifSound'
 
 const TITLES: Array<[string, string]> = [
+  ['/vazifalar', 'Admin-kurator vazifalari'],
   ['/profile', 'Mening profilim'],
   ['/notifications', 'Bildirishnomalar'],
   ['/products', 'Mahsulotlar'],
@@ -75,6 +79,7 @@ export function AppShell() {
 
   const links = [
     { to: '/', label: 'Asosiy', icon: LayoutDashboard, end: true },
+    { to: '/vazifalar', label: 'Vazifalar', icon: Briefcase, end: false },
     { to: '/factories', label: 'Fabrikalar', icon: Factory, end: false },
     { to: '/orders', label: 'Buyurtmalar', icon: ShoppingCart, end: false },
     { to: '/documents', label: 'Hujjatlar', icon: FileText, end: false },
@@ -134,6 +139,20 @@ export function AppShell() {
           </NavLink>
         ))}
       </nav>
+
+      <div className="mt-auto space-y-2 pt-4">
+        <MyCurator
+          selfLabel
+          curator={{
+            id: user.id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            phone: user.phone,
+            username: user.username,
+          }}
+        />
+        <TechnicalHelp />
+      </div>
     </div>
   )
 

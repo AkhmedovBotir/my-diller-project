@@ -30,6 +30,8 @@ func NewModule(pool *pgxpool.Pool, jwtSecret string, storage *upload.Storage, no
 }
 
 func (m *Module) RegisterRoutes(r chi.Router) {
+	r.Get("/platform/support", m.handler.PublicSupport)
+
 	// Xaridor — buyurtma berish va kuzatish
 	r.Route("/xaridor/buyurtmalar", func(r chi.Router) {
 		r.Use(auth.Middleware(m.jwtSecret))

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"mime/multipart"
+	"strings"
 	"time"
 
 	"diller-backend/internal/pkg/upload"
@@ -1041,6 +1042,7 @@ func (s *Service) GetSettings(ctx context.Context) (*PlatformSettings, error) {
 }
 
 func (s *Service) UpdateSettings(ctx context.Context, input UpdatePlatformSettingsInput) (*PlatformSettings, error) {
+	input.SupportTelegram = strings.TrimPrefix(strings.TrimSpace(input.SupportTelegram), "@")
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}

@@ -17,6 +17,7 @@ import (
 	"diller-backend/modules/notification"
 	"diller-backend/modules/order"
 	"diller-backend/modules/product"
+	"diller-backend/modules/region"
 	"diller-backend/modules/xaridor"
 )
 
@@ -50,6 +51,7 @@ func Run(cfg *config.Config) error {
 	dostavkaModule := dostavka.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL())
 	ishlabChiqaruvchiModule := ishlabchiqaruvchi.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL())
 	categoryModule := category.NewModule(pool, cfg.JWT.Secret)
+	regionModule := region.NewModule(pool, cfg.JWT.Secret)
 	productModule := product.NewModule(pool, cfg.JWT.Secret, storage)
 	notificationModule := notification.NewModule(pool, cfg.JWT.Secret)
 	orderModule := order.NewModule(pool, cfg.JWT.Secret, storage, notificationModule.Service)
@@ -58,7 +60,7 @@ func Run(cfg *config.Config) error {
 
 	router := NewRouter(
 		cfg, storage,
-		adminModule, xaridorModule, dostavkaModule, ishlabChiqaruvchiModule, categoryModule, productModule,
+		adminModule, xaridorModule, dostavkaModule, ishlabChiqaruvchiModule, categoryModule, regionModule, productModule,
 		orderModule, notificationModule, kuratorModule,
 	)
 

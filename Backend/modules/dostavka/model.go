@@ -38,8 +38,25 @@ type Dostavka struct {
 	Phone        string    `json:"phone"`
 	Username     string    `json:"username"`
 	PasswordHash string    `json:"-"`
+	City         string    `json:"city"`
+	MFY          string    `json:"mfy"`
+	MFYID        *int64    `json:"mfy_id,omitempty"`
+	KuratorID    *int64    `json:"kurator_id,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type KuratorSummary struct {
+	ID        int64  `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Phone     string `json:"phone"`
+	Username  string `json:"username"`
+}
+
+type ProfileResponse struct {
+	*Dostavka
+	Kurator *KuratorSummary `json:"kurator,omitempty"`
 }
 
 type LoginInput struct {
@@ -131,6 +148,9 @@ type UpdateProfileInput struct {
 	LastName    string `json:"last_name"`
 	Phone       string `json:"phone"`
 	Username    string `json:"username"`
+	City        string `json:"city"`
+	MFY         string `json:"mfy"`
+	MFYID       *int64 `json:"mfy_id"`
 	// Password bo'sh bo'lsa o'zgartirilmaydi
 	Password string `json:"password,omitempty"`
 }

@@ -5,23 +5,23 @@ alwaysApply: true
 
 # My Diller
 
-B2B ulgurji platforma (`milliycrm.uz`). Integratsiyasiz: Didox/Click/Payme/Telegram yo‘q.
+B2B ulgurji platforma (`mydiller.uz`). Integratsiyasiz: Didox/Click/Payme/Telegram yo‘q.
 
 ## Papkalar ↔ domenlar
 
 | Papka | Domen | Rol |
 |-------|-------|-----|
-| `landing` | milliycrm.uz | Marketing + kabinet linklari |
-| `admin` | admin.milliycrm.uz | Bosh admin / general |
-| `admin-kurator` | kurator.milliycrm.uz | Kurator CRM |
-| `ishlab chiqaruvchi` | zavod.milliycrm.uz | Zavod |
-| `foydalanuvchi` | user.milliycrm.uz | Xaridor |
-| `dostavka` | yetkazish.milliycrm.uz | Logistika |
-| `backend` | api.milliycrm.uz | Go API |
+| `landing` | mydiller.uz | Marketing + kabinet linklari |
+| `admin` | admin.mydiller.uz | Bosh admin / general |
+| `admin-kurator` | kurator.mydiller.uz | Kurator CRM |
+| `ishlab chiqaruvchi` | zavod.mydiller.uz | Zavod |
+| `foydalanuvchi` | user.mydiller.uz | Xaridor |
+| `dostavka` | yetkazish.mydiller.uz | Logistika |
+| `backend` | api.mydiller.uz | Go API |
 
 ## Qoidalar
 
-- Frontend API URL faqat `src/shared/config.ts` da (`https://api.milliycrm.uz/api/v1`). `.env` / `VITE_API_URL` ishlatilmasin.
+- Frontend API URL faqat `src/shared/config.ts` da (`https://api.mydiller.uz/api/v1`). `.env` / `VITE_API_URL` ishlatilmasin.
 - Backend sozlamalar `backend/config.json` da (CORS, upload, DB, JWT).
 - UI tili: o‘zbek (lotin). Xabarlar/snackbar ham o‘zbekcha.
 - Mavjud dizayn: `#102d26` / `#c9f560`, Tailwind 4, framer-motion — yangi UI shu uslubda.

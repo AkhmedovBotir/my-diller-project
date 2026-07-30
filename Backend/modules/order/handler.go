@@ -821,6 +821,20 @@ func (h *Handler) AdminGetSettings(w http.ResponseWriter, r *http.Request) {
 	httputil.JSON(w, http.StatusOK, s)
 }
 
+func (h *Handler) PublicSupport(w http.ResponseWriter, r *http.Request) {
+	s, err := h.service.GetSettings(r.Context())
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	telegram := s.SupportTelegram
+	httputil.JSON(w, http.StatusOK, map[string]string{
+		"telegram": telegram,
+		"url":      "https://t.me/" + telegram,
+		"label":    "Texnik yordam",
+	})
+}
+
 func (h *Handler) AdminUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var input UpdatePlatformSettingsInput
 	if field, message, err := httputil.DecodeJSON(r, &input); err != nil {

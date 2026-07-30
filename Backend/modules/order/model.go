@@ -5,6 +5,7 @@ package order
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -196,6 +197,7 @@ type PlatformSettings struct {
 	FreePromoActive   bool      `json:"free_promo_active"`
 	ReserveBalance    float64   `json:"reserve_balance"`
 	CuratorPercent    float64   `json:"curator_percent"`
+	SupportTelegram   string    `json:"support_telegram"`
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
@@ -300,6 +302,7 @@ type UpdatePlatformSettingsInput struct {
 	FreePromoActive   bool    `json:"free_promo_active"`
 	ReserveBalance    float64 `json:"reserve_balance"`
 	CuratorPercent    float64 `json:"curator_percent"`
+	SupportTelegram   string  `json:"support_telegram"`
 }
 
 func (i UpdatePlatformSettingsInput) Validate() error {
@@ -311,6 +314,9 @@ func (i UpdatePlatformSettingsInput) Validate() error {
 	}
 	if i.CuratorPercent < 0 || i.CuratorPercent > 100 {
 		return validationError("curator_percent", "curator_percent 0 va 100 oralig'ida bo'lishi kerak")
+	}
+	if strings.TrimSpace(i.SupportTelegram) == "" {
+		return validationError("support_telegram", "support_telegram kiritilishi shart")
 	}
 	return nil
 }

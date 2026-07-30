@@ -45,7 +45,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, a)
+	httputil.JSON(w, http.StatusOK, ProfileResponse{Admin: a, ProfileComplete: ProfileComplete(a)})
 }
 
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +63,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, a)
+	httputil.JSON(w, http.StatusOK, ProfileResponse{Admin: a, ProfileComplete: ProfileComplete(a)})
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +101,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	admins, err := h.service.List(r.Context(), limit, offset)
+	admins, err := h.service.List(r.Context(), r.URL.Query().Get("type"), limit, offset)
 	if err != nil {
 		h.writeError(w, err)
 		return

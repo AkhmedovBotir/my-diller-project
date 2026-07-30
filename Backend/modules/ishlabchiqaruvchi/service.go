@@ -4,21 +4,27 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"diller-backend/internal/pkg/auth"
+	"diller-backend/internal/pkg/kuratorassign"
+	"diller-backend/modules/region"
 )
 
 type Service struct {
 	repo      *Repository
+	pool      *pgxpool.Pool
 	jwtSecret string
 	jwtTTL    time.Duration
 }
 
-func NewService(repo *Repository, jwtSecret string, jwtTTL time.Duration) *Service {
-	return &Service{repo: repo, jwtSecret: jwtSecret, jwtTTL: jwtTTL}
+func NewService(repo *Repository, pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration) *Service {
+	return &Service{repo: repo, pool: pool, jwtSecret: jwtSecret, jwtTTL: jwtTTL}
 }
 
 func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResponse, error) {
@@ -147,7 +153,15 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateInput) (*Ish
 	return s.repo.Update(ctx, id, input, hash)
 }
 
-func (s *Service) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput) (*Ishlabchiqaruvchi, error) {
+func (s *Service) GetProfile(ctx context.Context, id int64) (*ProfileResponse, error) {
+	item, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.buildProfileResponse(ctx, item)
+}
+
+func (s *Service) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput) (*ProfileResponse, error) {
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -160,7 +174,55 @@ func (s *Service) UpdateProfile(ctx context.Context, id int64, input UpdateProfi
 		}
 	}
 
-	return s.repo.UpdateProfile(ctx, id, input, hash)
+	birthDate, err := parseBirthDate(input.BirthDate)
+	if err != nil {
+		return nil, err
+	}
+
+	labels, err := region.NewRepository(s.pool).ResolveLabels(ctx, *input.MFYID)
+	if err != nil {
+		if errors.Is(err, region.ErrNotFound) {
+			return nil, validationError("mfy_id", "MFY topilmadi")
+		}
+		return nil, err
+	}
+	input.City = labels.City
+	input.MFY = labels.MFY
+
+	kuratorID, err := kuratorassign.FindByMFYID(ctx, s.pool, *input.MFYID)
+	if err != nil {
+		return nil, fmt.Errorf("kuratorni topib bo'lmadi: %w", err)
+	}
+
+	item, err := s.repo.UpdateProfile(ctx, id, input, hash, birthDate, kuratorID)
+	if err != nil {
+		return nil, err
+	}
+	return s.buildProfileResponse(ctx, item)
+}
+
+func (s *Service) buildProfileResponse(ctx context.Context, item *Ishlabchiqaruvchi) (*ProfileResponse, error) {
+	resp := &ProfileResponse{Ishlabchiqaruvchi: item, ProfileComplete: ProfileComplete(item)}
+	if item.KuratorID != nil {
+		k, err := s.repo.GetKuratorSummary(ctx, *item.KuratorID)
+		if err != nil {
+			return nil, err
+		}
+		resp.Kurator = k
+	}
+	return resp, nil
+}
+
+func parseBirthDate(raw string) (*time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	t, err := time.Parse("2006-01-02", raw)
+	if err != nil {
+		return nil, validationError("birth_date", "Tug'ilgan sana YYYY-MM-DD formatida bo'lishi kerak")
+	}
+	return &t, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id int64) error {

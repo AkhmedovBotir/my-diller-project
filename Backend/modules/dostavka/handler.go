@@ -39,7 +39,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	claims := auth.ClaimsFromContext(r.Context())
 
-	item, err := h.service.GetByID(r.Context(), claims.SubjectID)
+	item, err := h.service.GetProfile(r.Context(), claims.SubjectID)
 	if err != nil {
 		h.writeError(w, err)
 		return

@@ -4,16 +4,16 @@ globs: landing/**/*
 alwaysApply: false
 ---
 
-# Landing (milliycrm.uz)
+# Landing (mydiller.uz)
 
 Vanilla Vite (React yo‘q). Port: `5170`.
 
 Kabinet linklari `index.html` da production URL:
 
-- Xaridor → `https://user.milliycrm.uz`
-- Zavod → `https://zavod.milliycrm.uz`
-- Dostavka → `https://yetkazish.milliycrm.uz`
-- Kurator → `https://kurator.milliycrm.uz`
-- Admin → `https://admin.milliycrm.uz`
+- Xaridor → `https://user.mydiller.uz`
+- Zavod → `https://zavod.mydiller.uz`
+- Dostavka → `https://yetkazish.mydiller.uz`
+- Kurator → `https://kurator.mydiller.uz`
+- Admin → `https://admin.mydiller.uz`
 
 `localhost:517x` ishlatilmasin. O‘zgartirishdan keyin `npm run build` — deploy uchun `dist/`.

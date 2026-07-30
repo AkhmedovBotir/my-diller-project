@@ -21,6 +21,10 @@ import type {
   Product,
   ProductStatus,
   ProductUpdateInput,
+  Region,
+  RegionImportResult,
+  RegionInput,
+  RegionType,
   Subcategory,
   SubcategoryInput,
   UpdatePlatformSettingsInput,
@@ -140,8 +144,11 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
-  admins: (limit = 20, offset = 0) =>
-    request<Admin[]>(`/admin/admins?limit=${limit}&offset=${offset}`),
+  admins: (limit = 20, offset = 0, type?: string) => {
+    const query = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    if (type) query.set('type', type)
+    return request<Admin[]>(`/admin/admins?${query.toString()}`)
+  },
 
   admin: (id: number) => request<Admin>(`/admin/admins/${id}`),
 
@@ -225,6 +232,38 @@ export const api = {
 
   deleteSubcategory: (id: number) =>
     request<void>(`/subcategories/${id}`, { method: 'DELETE' }),
+
+  regions: (params?: { type?: RegionType; parent_id?: number; status?: string; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 500))
+    query.set('offset', String(params?.offset ?? 0))
+    if (params?.type) query.set('type', params.type)
+    if (params?.parent_id != null) query.set('parent_id', String(params.parent_id))
+    if (params?.status) query.set('status', params.status)
+    return request<Region[]>(`/admin/regions?${query.toString()}`)
+  },
+
+  region: (id: number) => request<Region>(`/admin/regions/${id}`),
+
+  createRegion: (input: RegionInput) =>
+    request<Region>('/admin/regions', { method: 'POST', body: JSON.stringify(input) }),
+
+  updateRegion: (id: number, input: RegionInput) =>
+    request<Region>(`/admin/regions/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+
+  deleteRegion: (id: number) => request<void>(`/admin/regions/${id}`, { method: 'DELETE' }),
+
+  importRegions: () =>
+    request<RegionImportResult>('/admin/regions/import', { method: 'POST' }),
+
+  kuratorMfys: (kuratorId: number) =>
+    request<Region[]>(`/admin/kuratorlar/${kuratorId}/mfys`),
+
+  setKuratorMfys: (kuratorId: number, mfy_ids: number[]) =>
+    request<Region[]>(`/admin/kuratorlar/${kuratorId}/mfys`, {
+      method: 'PUT',
+      body: JSON.stringify({ mfy_ids }),
+    }),
 
   products: (params?: { status?: ProductStatus; limit?: number; offset?: number }) => {
     const query = new URLSearchParams()

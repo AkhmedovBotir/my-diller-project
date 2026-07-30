@@ -18,6 +18,8 @@ import { useAuth } from '../modules/auth/AuthContext'
 import { useCart } from '../modules/cart/CartContext'
 import { useNotifications } from '../modules/notifications/NotificationsContext'
 import { NotifSoundToggle } from '../shared/NotifSoundToggle'
+import { TechnicalHelp } from '../shared/TechnicalHelp'
+import { MyCurator } from '../shared/MyCurator'
 
 const TITLES: Record<string, string> = {
   '/profile': 'Mening profilim',
@@ -98,6 +100,11 @@ export function AppShell() {
           </NavLink>
         ))}
       </nav>
+
+      <div className="mt-auto space-y-2 pt-4">
+        <MyCurator curator={user.kurator} />
+        <TechnicalHelp />
+      </div>
     </div>
   )
 

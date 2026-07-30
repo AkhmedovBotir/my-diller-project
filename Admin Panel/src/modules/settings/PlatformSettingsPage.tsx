@@ -40,6 +40,7 @@ export function PlatformSettingsPage() {
         free_promo_active: form.get('free_promo_active') === 'on',
         reserve_balance: Number(form.get('reserve_balance')),
         curator_percent: Number(form.get('curator_percent')),
+        support_telegram: String(form.get('support_telegram') ?? '').trim().replace(/^@+/, ''),
       })
       setSettings(updated)
       showSnackbar('Platforma sozlamalari yangilandi')
@@ -139,6 +140,22 @@ export function PlatformSettingsPage() {
               defaultValue={settings.curator_percent}
               className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-4 text-sm outline-none transition focus:border-[#397461] focus:bg-white focus:ring-4 focus:ring-[#397461]/8"
             />
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-600">
+              <ShieldCheck size={14} className="text-[#397461]" />
+              Texnik yordam Telegram username
+            </span>
+            <input
+              name="support_telegram"
+              type="text"
+              required
+              defaultValue={settings.support_telegram}
+              placeholder="workmydiler"
+              className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-4 text-sm outline-none transition focus:border-[#397461] focus:bg-white focus:ring-4 focus:ring-[#397461]/8"
+            />
+            <p className="mt-1 text-xs text-slate-400">Masalan: `workmydiler` (oldiga @ yozmang)</p>
           </label>
         </div>
 

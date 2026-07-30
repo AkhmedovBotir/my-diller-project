@@ -16,6 +16,7 @@ import type {
   PlatformSettingsLite,
   Product,
   ProductStatus,
+  Region,
 } from './types'
 
 import { API_URL } from './config'
@@ -149,6 +150,8 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
+
+  kuratorMfys: () => request<Region[]>('/kurator/mfys'),
 
   // ---- Kurator: buyurtmalar ----
   kuratorOrders: (params?: { status?: OrderStatus | ''; limit?: number; offset?: number }) =>

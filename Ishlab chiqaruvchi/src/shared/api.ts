@@ -13,6 +13,7 @@ import type {
   ProductCreateInput,
   ProductStatus,
   ProductUpdateInput,
+  Region,
   RegisterInput,
   Subcategory,
 } from './types'
@@ -159,6 +160,17 @@ export const api = {
   categories: (limit = 100, offset = 0) =>
     request<Category[]>(`/categories?limit=${limit}&offset=${offset}`),
 
+  regions: (params?: { type?: 'region' | 'district' | 'mfy'; parent_id?: number; limit?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 500))
+    query.set('offset', '0')
+    if (params?.type) query.set('type', params.type)
+    if (params?.parent_id != null) query.set('parent_id', String(params.parent_id))
+    return request<Region[]>(`/regions?${query.toString()}`)
+  },
+
+  region: (id: number) => request<Region>(`/regions/${id}`),
+
   subcategories: (params?: { category_id?: number; limit?: number; offset?: number }) => {
     const query = new URLSearchParams()
     query.set('limit', String(params?.limit ?? 100))
@@ -194,6 +206,7 @@ export const api = {
     return request<Product>(`/ishlabchiqaruvchi/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
+        code: input.code,
         name: input.name,
         city: input.city,
         description: input.description,
@@ -305,6 +318,9 @@ export function isIshlabchiqaruvchiProfileComplete(user: Ishlabchiqaruvchi | nul
       user.stir?.trim() &&
       user.bank_account?.trim() &&
       user.bank_name?.trim() &&
+      user.mfo?.trim() &&
+      user.mfy_id &&
+      user.birth_date &&
       user.address?.trim() &&
       user.first_name?.trim() &&
       user.last_name?.trim() &&

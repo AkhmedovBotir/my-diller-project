@@ -1,3 +1,20 @@
+export interface KuratorSummary {
+  id: number
+  first_name: string
+  last_name: string
+  phone: string
+  username?: string
+}
+
+export interface Region {
+  id: number
+  parent_id?: number | null
+  name: string
+  code: string
+  type: 'region' | 'district' | 'mfy'
+  status: string
+}
+
 export interface Dostavka {
   id: number
   company_name: string
@@ -5,8 +22,16 @@ export interface Dostavka {
   last_name: string
   phone: string
   username: string
+  city?: string
+  mfy?: string
+  mfy_id?: number | null
+  kurator_id?: number | null
   created_at: string
   updated_at: string
+}
+
+export interface ProfileResponse extends Dostavka {
+  kurator?: KuratorSummary | null
 }
 
 export interface DostavkaInput {
@@ -15,6 +40,9 @@ export interface DostavkaInput {
   last_name: string
   phone: string
   username: string
+  city?: string
+  mfy?: string
+  mfy_id?: number | null
   password?: string
 }
 

@@ -10,6 +10,7 @@ import {
   Plus,
   Search,
   Trash2,
+  MapPinned,
   UserCog,
   X,
 } from 'lucide-react'
@@ -30,7 +31,19 @@ const roleLabel: Record<AdminRole, string> = {
   kurator: 'Kurator',
 }
 
-export function AdminsPage({ readOnly = false }: { readOnly?: boolean }) {
+export function AdminsPage({
+  readOnly = false,
+  typeFilter,
+  title = 'Adminlar boshqaruvi',
+  subtitle = "Tizim foydalanuvchilari va ularning ruxsatlarini boshqaring",
+  hideTypeFilter = false,
+}: {
+  readOnly?: boolean
+  typeFilter?: AdminRole
+  title?: string
+  subtitle?: string
+  hideTypeFilter?: boolean
+}) {
   const { showSnackbar } = useSnackbar()
   const [admins, setAdmins] = useState<Admin[]>([])
   const [loading, setLoading] = useState(true)
@@ -40,13 +53,14 @@ export function AdminsPage({ readOnly = false }: { readOnly?: boolean }) {
   const [editing, setEditing] = useState<Admin | 'new' | null>(null)
   const [viewing, setViewing] = useState<Admin | null>(null)
   const [deleting, setDeleting] = useState<Admin | null>(null)
+  const [mfysFor, setMfysFor] = useState<Admin | null>(null)
   const limit = 20
 
   const loadAdmins = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      setAdmins(await api.admins(limit, offset))
+      setAdmins(await api.admins(limit, offset, typeFilter))
     } catch (loadError) {
       const message = getErrorMessage(loadError)
       setError(message)
@@ -54,7 +68,7 @@ export function AdminsPage({ readOnly = false }: { readOnly?: boolean }) {
     } finally {
       setLoading(false)
     }
-  }, [offset, showSnackbar])
+  }, [offset, showSnackbar, typeFilter])
 
   useEffect(() => {
     const task = window.setTimeout(() => void loadAdmins(), 0)
@@ -75,8 +89,8 @@ export function AdminsPage({ readOnly = false }: { readOnly?: boolean }) {
     <div className="space-y-5">
       <section className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900">Adminlar boshqaruvi</h2>
-          <p className="mt-1 text-xs text-slate-400">Tizim foydalanuvchilari va ularning ruxsatlarini boshqaring</p>
+          <h2 className="text-lg font-bold tracking-tight text-slate-900">{title}</h2>
+          <p className="mt-1 text-xs text-slate-400">{subtitle}</p>
         </div>
         {!readOnly && (
           <motion.button
@@ -171,6 +185,15 @@ export function AdminsPage({ readOnly = false }: { readOnly?: boolean }) {
                           </button>
                           {!readOnly && (
                             <>
+                            {typeFilter === 'kurator' && (
+                              <button
+                                onClick={() => setMfysFor(admin)}
+                                className="grid size-9 place-items-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-700"
+                                title="Hududlar"
+                              >
+                                <MapPinned size={16} />
+                              </button>
+                            )}
                             <button
                               onClick={() => setEditing(admin)}
                               className="grid size-9 place-items-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-600"
@@ -238,6 +261,8 @@ export function AdminsPage({ readOnly = false }: { readOnly?: boolean }) {
         {editing && (
           <AdminFormModal
             admin={editing === 'new' ? undefined : editing}
+            defaultType={typeFilter}
+            hideTypeField={hideTypeFilter}
             onClose={() => setEditing(null)}
             onSaved={() => {
               setEditing(null)
@@ -253,6 +278,12 @@ export function AdminsPage({ readOnly = false }: { readOnly?: boolean }) {
               setDeleting(null)
               void loadAdmins()
             }}
+          />
+        )}
+        {mfysFor && (
+          <KuratorMfysModal
+            kurator={mfysFor}
+            onClose={() => setMfysFor(null)}
           />
         )}
       </AnimatePresence>
@@ -359,10 +390,14 @@ function AdminTableSkeleton() {
 
 function AdminFormModal({
   admin,
+  defaultType,
+  hideTypeField = false,
   onClose,
   onSaved,
 }: {
   admin?: Admin
+  defaultType?: AdminRole
+  hideTypeField?: boolean
   onClose: () => void
   onSaved: () => void
 }) {
@@ -415,20 +450,24 @@ function AdminFormModal({
           <ModalField name="last_name" label="Familiya" defaultValue={admin?.last_name} invalid={errorField === 'last_name'} />
           <ModalField name="phone" label="Telefon" type="tel" defaultValue={admin?.phone} placeholder="+998 90 123 45 67" invalid={errorField === 'phone'} />
           <ModalField name="username" label="Login" defaultValue={admin?.username} invalid={errorField === 'username'} />
-          <label className="block">
-            <span className="mb-2 block text-xs font-bold text-slate-600">Admin turi</span>
-            <select
-              name="type"
-              defaultValue={admin?.type ?? 'admin'}
-              className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
-                errorField === 'type' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
-              }`}
-            >
-              <option value="general">General</option>
-              <option value="admin">Admin</option>
-              <option value="kurator">Kurator</option>
-            </select>
-          </label>
+          {!hideTypeField ? (
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold text-slate-600">Admin turi</span>
+              <select
+                name="type"
+                defaultValue={admin?.type ?? defaultType ?? 'admin'}
+                className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
+                  errorField === 'type' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
+                }`}
+              >
+                <option value="general">General</option>
+                <option value="admin">Admin</option>
+                <option value="kurator">Kurator</option>
+              </select>
+            </label>
+          ) : (
+            <input type="hidden" name="type" value={defaultType ?? 'kurator'} />
+          )}
           <ModalField
             name="password"
             label={admin ? 'Yangi parol (ixtiyoriy)' : 'Parol'}
@@ -481,6 +520,172 @@ function DeleteModal({ admin, onClose, onDeleted }: { admin: Admin; onClose: () 
             {loading ? 'O‘chirilmoqda...' : 'Ha, o‘chirish'}
           </button>
         </div>
+      </div>
+    </Modal>
+  )
+}
+
+function KuratorMfysModal({ kurator, onClose }: { kurator: Admin; onClose: () => void }) {
+  const { showSnackbar } = useSnackbar()
+  const [regions, setRegions] = useState<{ id: number; name: string }[]>([])
+  const [districts, setDistricts] = useState<{ id: number; name: string }[]>([])
+  const [mfys, setMfys] = useState<{ id: number; name: string }[]>([])
+  const [regionId, setRegionId] = useState('')
+  const [districtId, setDistrictId] = useState('')
+  const [selected, setSelected] = useState<{ id: number; name: string }[]>([])
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    void (async () => {
+      setLoading(true)
+      try {
+        const [regs, assigned] = await Promise.all([
+          api.regions({ type: 'region', limit: 200 }),
+          api.kuratorMfys(kurator.id),
+        ])
+        setRegions(regs)
+        setSelected(assigned.map((item) => ({ id: item.id, name: item.name })))
+      } catch (error) {
+        showSnackbar(getErrorMessage(error), 'error')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [kurator.id, showSnackbar])
+
+  useEffect(() => {
+    if (!regionId) {
+      setDistricts([])
+      setDistrictId('')
+      setMfys([])
+      return
+    }
+    void (async () => {
+      try {
+        setDistricts(await api.regions({ type: 'district', parent_id: Number(regionId), limit: 500 }))
+        setDistrictId('')
+        setMfys([])
+      } catch (error) {
+        showSnackbar(getErrorMessage(error), 'error')
+      }
+    })()
+  }, [regionId, showSnackbar])
+
+  useEffect(() => {
+    if (!districtId) {
+      setMfys([])
+      return
+    }
+    void (async () => {
+      try {
+        setMfys(await api.regions({ type: 'mfy', parent_id: Number(districtId), limit: 2000 }))
+      } catch (error) {
+        showSnackbar(getErrorMessage(error), 'error')
+      }
+    })()
+  }, [districtId, showSnackbar])
+
+  function toggleMfy(item: { id: number; name: string }) {
+    setSelected((current) =>
+      current.some((row) => row.id === item.id)
+        ? current.filter((row) => row.id !== item.id)
+        : [...current, item],
+    )
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await api.setKuratorMfys(kurator.id, selected.map((item) => item.id))
+      showSnackbar('Kurator hududlari saqlandi')
+      onClose()
+    } catch (error) {
+      showSnackbar(getErrorMessage(error), 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="border-b border-slate-100 px-6 py-5">
+        <h3 className="font-bold">
+          {kurator.first_name} {kurator.last_name} — hududlar
+        </h3>
+        <p className="mt-1 text-xs text-slate-400">Bir nechta MFY biriktirishingiz mumkin</p>
+      </div>
+      <div className="max-h-[70vh] space-y-4 overflow-y-auto p-6">
+        {loading ? (
+          <div className="flex justify-center py-10 text-slate-400">
+            <LoaderCircle className="animate-spin" />
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <select
+                value={regionId}
+                onChange={(event) => setRegionId(event.target.value)}
+                className="h-11 rounded-xl border border-slate-200 px-3 text-sm"
+              >
+                <option value="">Viloyat</option>
+                {regions.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+              <select
+                value={districtId}
+                onChange={(event) => setDistrictId(event.target.value)}
+                className="h-11 rounded-xl border border-slate-200 px-3 text-sm"
+              >
+                <option value="">Tuman</option>
+                {districts.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+              <select
+                value=""
+                onChange={(event) => {
+                  const id = Number(event.target.value)
+                  const item = mfys.find((row) => row.id === id)
+                  if (item) toggleMfy(item)
+                }}
+                className="h-11 rounded-xl border border-slate-200 px-3 text-sm"
+              >
+                <option value="">MFY qo‘shish...</option>
+                {mfys.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selected.length === 0 && <p className="text-sm text-slate-400">Hali MFY tanlanmagan</p>}
+              {selected.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => toggleMfy(item)}
+                  className="rounded-full bg-[#eff8f3] px-3 py-1.5 text-xs font-bold text-[#173c32]"
+                >
+                  {item.name} ×
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      <div className="flex gap-2 border-t border-slate-100 p-4">
+        <button onClick={onClose} className="h-11 flex-1 rounded-xl bg-slate-100 text-sm font-bold text-slate-700">
+          Bekor
+        </button>
+        <button
+          disabled={saving}
+          onClick={() => void handleSave()}
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#173c32] text-sm font-bold text-white disabled:opacity-60"
+        >
+          {saving && <LoaderCircle size={16} className="animate-spin" />}
+          Saqlash
+        </button>
       </div>
     </Modal>
   )

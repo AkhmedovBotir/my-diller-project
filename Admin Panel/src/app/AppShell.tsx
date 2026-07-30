@@ -7,6 +7,7 @@ import {
   FolderTree,
   LayoutDashboard,
   LogOut,
+  MapPinned,
   Menu,
   Package,
   Percent,
@@ -24,6 +25,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../modules/auth/AuthContext'
 import type { AdminRole } from '../shared/types'
 import { NotifSoundToggle } from '../shared/NotifSoundToggle'
+import { TechnicalHelp } from '../shared/TechnicalHelp'
 import { NotificationsBell } from './NotificationsBell'
 
 const roleLabels: Record<AdminRole, string> = {
@@ -47,6 +49,8 @@ export function AppShell() {
       ? 'Ishlab chiqaruvchilar'
       : pathname.endsWith('/categories')
         ? 'Kategoriyalar'
+        : pathname.endsWith('/regions')
+          ? 'Hududlar'
         : pathname.includes('/products')
           ? 'Mahsulotlar'
           : pathname.includes('/orders')
@@ -57,6 +61,8 @@ export function AppShell() {
                 ? 'Dostavka kompaniyalari'
                 : pathname.endsWith('/commissions')
                   ? 'Komissiyalar'
+                  : pathname.endsWith('/kuratorlar')
+                    ? 'Kuratorlar'
                   : pathname.endsWith('/kurator-tolovlari')
                     ? 'Kurator to‘lov so‘rovlari'
                     : pathname.endsWith('/debts')
@@ -76,9 +82,15 @@ export function AppShell() {
     { to: `${basePath}/xaridorlar`, label: 'Xaridorlar', icon: Store, end: false },
     { to: `${basePath}/dostavka`, label: 'Dostavka', icon: Truck, end: false },
     { to: `${basePath}/categories`, label: 'Kategoriyalar', icon: FolderTree, end: false },
+    ...(admin.type === 'general'
+      ? [{ to: `${basePath}/regions`, label: 'Hududlar', icon: MapPinned, end: false }]
+      : []),
     { to: `${basePath}/products`, label: 'Mahsulotlar', icon: Package, end: false },
     { to: `${basePath}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, end: false },
     { to: `${basePath}/commissions`, label: 'Komissiya', icon: Percent, end: false },
+    ...(admin.type === 'general'
+      ? [{ to: `${basePath}/kuratorlar`, label: 'Kuratorlar', icon: UserRound, end: false }]
+      : []),
     ...(admin.type === 'general'
       ? [{ to: `${basePath}/kurator-tolovlari`, label: 'Kurator to‘lovlari', icon: Banknote, end: false }]
       : []),
@@ -136,6 +148,9 @@ export function AppShell() {
         ))}
       </nav>
 
+      <div className="mt-auto pt-4">
+        <TechnicalHelp />
+      </div>
     </div>
   )
 

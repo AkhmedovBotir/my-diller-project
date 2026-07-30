@@ -1,11 +1,12 @@
 import type {
   ApiError,
-  Dostavka,
   DostavkaInput,
   LoginResponse,
   Notification,
   Order,
   OrderStatus,
+  ProfileResponse,
+  Region,
 } from './types'
 
 import { API_URL } from './config'
@@ -80,13 +81,24 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
 
-  profile: () => request<Dostavka>('/dostavka/profile'),
+  profile: () => request<ProfileResponse>('/dostavka/profile'),
 
   updateProfile: (input: DostavkaInput) =>
-    request<Dostavka>('/dostavka/profile', {
+    request<ProfileResponse>('/dostavka/profile', {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
+
+  regions: (params?: { type?: 'region' | 'district' | 'mfy'; parent_id?: number; limit?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 500))
+    query.set('offset', '0')
+    if (params?.type) query.set('type', params.type)
+    if (params?.parent_id != null) query.set('parent_id', String(params.parent_id))
+    return request<Region[]>(`/regions?${query.toString()}`)
+  },
+
+  region: (id: number) => request<Region>(`/regions/${id}`),
 
   orders: (params?: { status?: OrderStatus | ''; limit?: number; offset?: number }) => {
     const query = new URLSearchParams()

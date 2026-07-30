@@ -6,9 +6,12 @@ import type {
   Notification,
   Order,
   Product,
+  Region,
   RegisterInput,
   ShartnomaResponse,
   Subcategory,
+  CatalogManufacturer,
+  XaridorProfileResponse,
   Xaridor,
   XaridorProfileInput,
 } from './types'
@@ -120,15 +123,26 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
-  profile: () => request<Xaridor>('/xaridor/profile'),
+  profile: () => request<XaridorProfileResponse>('/xaridor/profile'),
 
   updateProfile: (input: XaridorProfileInput) =>
-    request<Xaridor>('/xaridor/profile', {
+    request<XaridorProfileResponse>('/xaridor/profile', {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
 
   categories: () => request<Category[]>('/categories?limit=100&offset=0'),
+
+  regions: (params?: { type?: 'region' | 'district' | 'mfy'; parent_id?: number; limit?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 500))
+    query.set('offset', '0')
+    if (params?.type) query.set('type', params.type)
+    if (params?.parent_id != null) query.set('parent_id', String(params.parent_id))
+    return request<Region[]>(`/regions?${query.toString()}`)
+  },
+
+  region: (id: number) => request<Region>(`/regions/${id}`),
 
   subcategories: (categoryId?: number) => {
     const query = new URLSearchParams()
@@ -141,6 +155,7 @@ export const api = {
   catalogProducts: (params?: {
     category_id?: number
     subcategory_id?: number
+    ishlabchiqaruvchi_id?: number
     search?: string
     limit?: number
     offset?: number
@@ -150,9 +165,12 @@ export const api = {
     query.set('offset', String(params?.offset ?? 0))
     if (params?.category_id) query.set('category_id', String(params.category_id))
     if (params?.subcategory_id) query.set('subcategory_id', String(params.subcategory_id))
+    if (params?.ishlabchiqaruvchi_id) query.set('ishlabchiqaruvchi_id', String(params.ishlabchiqaruvchi_id))
     if (params?.search) query.set('search', params.search)
     return request<Product[]>(`/catalog/products?${query.toString()}`)
   },
+
+  catalogManufacturers: () => request<CatalogManufacturer[]>('/catalog/manufacturers'),
 
   catalogProduct: (id: number) => request<Product>(`/catalog/products/${id}`),
 
@@ -233,6 +251,11 @@ export function isXaridorProfileComplete(user: Xaridor | null | undefined) {
   if (!user) return false
   return (
     Boolean(user.shop_name?.trim()) &&
+    Boolean(user.first_name?.trim()) &&
+    Boolean(user.last_name?.trim()) &&
+    Boolean(user.phone?.trim()) &&
+    Boolean(user.mfy_id) &&
+    Boolean(user.birth_date) &&
     Boolean(user.stir?.trim()) &&
     Boolean(user.bank_account?.trim()) &&
     Boolean(user.bank_name?.trim()) &&

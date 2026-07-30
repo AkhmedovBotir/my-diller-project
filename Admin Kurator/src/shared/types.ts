@@ -7,6 +7,11 @@ export interface Admin {
   phone: string
   username: string
   type: AdminType
+  city?: string
+  mfy?: string
+  birth_date?: string
+  residence_address?: string
+  profile_complete?: boolean
   created_at: string
   updated_at: string
 }
@@ -16,7 +21,18 @@ export interface AdminProfileInput {
   last_name: string
   phone: string
   username: string
+  birth_date?: string
+  residence_address?: string
   password?: string
+}
+
+export interface Region {
+  id: number
+  parent_id?: number | null
+  name: string
+  code: string
+  type: 'region' | 'district' | 'mfy'
+  status: string
 }
 
 export interface LoginResponse {

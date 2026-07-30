@@ -20,6 +20,34 @@ export interface AdminInput {
   type: AdminRole
 }
 
+export type RegionType = 'region' | 'district' | 'mfy'
+
+export interface Region {
+  id: number
+  mongo_oid?: string
+  parent_id?: number | null
+  name: string
+  code: string
+  type: RegionType
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface RegionInput {
+  parent_id?: number | null
+  name: string
+  code?: string
+  type?: RegionType
+  status?: string
+}
+
+export interface RegionImportResult {
+  inserted: number
+  updated: number
+  total: number
+}
+
 export interface LoginResponse {
   token: string
   admin: Admin
@@ -222,6 +250,7 @@ export interface PlatformSettings {
   free_promo_active: boolean
   reserve_balance: number
   curator_percent: number
+  support_telegram: string
   updated_at: string
 }
 
@@ -230,6 +259,7 @@ export interface UpdatePlatformSettingsInput {
   free_promo_active: boolean
   reserve_balance: number
   curator_percent: number
+  support_telegram: string
 }
 
 // ---- Kurator kartaga pul yechish so'rovlari (bosh admin ko'rinishi) ----

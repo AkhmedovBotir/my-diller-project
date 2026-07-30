@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const adminColumns = "id, first_name, last_name, phone, username, password_hash, type, created_at, updated_at"
+const adminColumns = `id, first_name, last_name, phone, username, password_hash, type,
+	city, mfy, birth_date, residence_address, created_at, updated_at`
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -25,6 +27,7 @@ func scanAdmin(row pgx.Row) (*Admin, error) {
 	err := row.Scan(
 		&a.ID, &a.FirstName, &a.LastName, &a.Phone,
 		&a.Username, &a.PasswordHash, &a.Type,
+		&a.City, &a.MFY, &a.BirthDate, &a.ResidenceAddress,
 		&a.CreatedAt, &a.UpdatedAt,
 	)
 	if err != nil {
@@ -80,10 +83,17 @@ func (r *Repository) GetByUsername(ctx context.Context, username string) (*Admin
 	return a, nil
 }
 
-func (r *Repository) List(ctx context.Context, limit, offset int) ([]Admin, error) {
-	query := fmt.Sprintf(`SELECT %s FROM admins ORDER BY id LIMIT $1 OFFSET $2`, adminColumns)
-
-	rows, err := r.pool.Query(ctx, query, limit, offset)
+func (r *Repository) List(ctx context.Context, adminType string, limit, offset int) ([]Admin, error) {
+	query := fmt.Sprintf(`SELECT %s FROM admins`, adminColumns)
+	var rows pgx.Rows
+	var err error
+	if adminType != "" {
+		query += ` WHERE type = $1 ORDER BY id LIMIT $2 OFFSET $3`
+		rows, err = r.pool.Query(ctx, query, adminType, limit, offset)
+	} else {
+		query += ` ORDER BY id LIMIT $1 OFFSET $2`
+		rows, err = r.pool.Query(ctx, query, limit, offset)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("adminlar ro'yxatini olib bo'lmadi: %w", err)
 	}
@@ -122,18 +132,20 @@ func (r *Repository) Update(ctx context.Context, id int64, input UpdateAdminInpu
 }
 
 // UpdateProfile profil ma'lumotlarini yangilaydi (type o'zgarmaydi).
-func (r *Repository) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput, passwordHash string) (*Admin, error) {
+func (r *Repository) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput, passwordHash string, birthDate *time.Time) (*Admin, error) {
 	query := fmt.Sprintf(`
 		UPDATE admins
 		SET first_name = $1, last_name = $2, phone = $3, username = $4,
-		    password_hash = COALESCE(NULLIF($5, ''), password_hash),
+		    city = $5, mfy = $6, birth_date = $7, residence_address = $8,
+		    password_hash = COALESCE(NULLIF($9, ''), password_hash),
 		    updated_at = now()
-		WHERE id = $6
+		WHERE id = $10
 		RETURNING %s`, adminColumns)
 
 	a, err := scanAdmin(r.pool.QueryRow(ctx, query,
 		input.FirstName, input.LastName, input.Phone,
-		input.Username, passwordHash, id,
+		input.Username, input.City, input.MFY, birthDate, input.ResidenceAddress,
+		passwordHash, id,
 	))
 	if err != nil {
 		return nil, mapError(err, "profilni yangilab bo'lmadi")

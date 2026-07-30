@@ -16,7 +16,7 @@ import { api, getErrorMessage } from '../../shared/api'
 import { CustomSelect } from '../../shared/CustomSelect'
 import { formatPrice, paymentTermFull } from '../../shared/format'
 import { useSnackbar } from '../../shared/Snackbar'
-import type { Category, Product, Subcategory } from '../../shared/types'
+import type { CatalogManufacturer, Category, Product, Subcategory } from '../../shared/types'
 import { useCart } from '../cart/CartContext'
 import { CartConflictModal } from '../cart/CartConflictModal'
 
@@ -35,9 +35,17 @@ export function CatalogPage() {
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [subcategoryId, setSubcategoryId] = useState('')
+  const [manufacturers, setManufacturers] = useState<CatalogManufacturer[]>([])
+  const [manufacturerId, setManufacturerId] = useState('')
   const [offset, setOffset] = useState(0)
   const [conflictProduct, setConflictProduct] = useState<Product | null>(null)
   const [conflictQuantity, setConflictQuantity] = useState(1)
+
+  useEffect(() => {
+    api.catalogManufacturers()
+      .then(setManufacturers)
+      .catch(() => setManufacturers([]))
+  }, [])
 
   useEffect(() => {
     const task = window.setTimeout(() => setSearch(searchInput.trim()), 350)
@@ -73,6 +81,7 @@ export function CatalogPage() {
       const products = await api.catalogProducts({
         category_id: categoryId ? Number(categoryId) : undefined,
         subcategory_id: subcategoryId ? Number(subcategoryId) : undefined,
+        ishlabchiqaruvchi_id: manufacturerId ? Number(manufacturerId) : undefined,
         search: search || undefined,
         limit: LIMIT,
         offset,
@@ -84,7 +93,7 @@ export function CatalogPage() {
     } finally {
       setLoading(false)
     }
-  }, [categoryId, subcategoryId, search, offset])
+  }, [categoryId, subcategoryId, manufacturerId, search, offset])
 
   useEffect(() => {
     const task = window.setTimeout(() => void loadItems(), 0)
@@ -98,6 +107,11 @@ export function CatalogPage() {
   const subcategoryOptions = useMemo(
     () => subcategories.map((item) => ({ value: String(item.id), label: item.name })),
     [subcategories],
+  )
+
+  const manufacturerOptions = useMemo(
+    () => manufacturers.map((item) => ({ value: String(item.id), label: item.company_name })),
+    [manufacturers],
   )
 
   function handleAddToCart(product: Product, quantity: number) {
@@ -125,11 +139,27 @@ export function CatalogPage() {
               setOffset(0)
               setSearchInput(event.target.value)
             }}
-            placeholder="Nom yoki kod bo‘yicha qidirish"
+            placeholder="Nom yoki korxona bo‘yicha qidirish"
             className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 text-sm outline-none transition focus:border-[#397461] focus:bg-white"
           />
         </div>
       </section>
+
+      {manufacturers.length > 0 && (
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5">
+          <CustomSelect
+            label="Korxona"
+            value={manufacturerId}
+            options={manufacturerOptions}
+            onChange={(next) => {
+              setOffset(0)
+              setManufacturerId(next)
+            }}
+            placeholder="Barcha korxonalar"
+            emptyText="Korxona topilmadi"
+          />
+        </section>
+      )}
 
       {categoriesAvailable && categories.length > 0 && (
         <section className="grid gap-3 rounded-2xl border border-slate-200/80 bg-white p-5 sm:grid-cols-2">
@@ -261,7 +291,7 @@ function ProductCard({
         <Link to={`/catalog/${product.id}`}>
           <p className="line-clamp-2 text-sm font-bold text-slate-800">{product.name}</p>
         </Link>
-        <p className="mt-1 font-mono text-xs text-slate-400">{product.code}</p>
+        <p className="mt-1 text-xs font-semibold text-[#397461]">{product.company_name || 'Korxona'}</p>
         {product.city && (
           <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
             <MapPin size={12} />

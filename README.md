@@ -1,6 +1,6 @@
 # My Diller
 
-B2B ulgurji savdo platformasi (`milliycrm.uz`).
+B2B ulgurji savdo platformasi (`mydiller.uz`).
 
 Xaridor, ishlab chiqaruvchi, dostavka, kurator va bosh admin alohida kabinetlar orqali ishlaydi. To‘lov bank o‘tkazmasi + kvitansiya orqali; Didox/Click/Payme/Telegram integratsiyasi yo‘q.
 
@@ -8,13 +8,13 @@ Xaridor, ishlab chiqaruvchi, dostavka, kurator va bosh admin alohida kabinetlar 
 
 | Papka | Domen |
 |-------|--------|
-| `landing/` | milliycrm.uz |
-| `admin/` | admin.milliycrm.uz |
-| `admin-kurator/` | kurator.milliycrm.uz |
-| `ishlab chiqaruvchi/` | zavod.milliycrm.uz |
-| `foydalanuvchi/` | user.milliycrm.uz |
-| `dostavka/` | yetkazish.milliycrm.uz |
-| `backend/` | api.milliycrm.uz |
+| `landing/` | mydiller.uz |
+| `admin/` | admin.mydiller.uz |
+| `admin-kurator/` | kurator.mydiller.uz |
+| `ishlab chiqaruvchi/` | zavod.mydiller.uz |
+| `foydalanuvchi/` | user.mydiller.uz |
+| `dostavka/` | yetkazish.mydiller.uz |
+| `backend/` | api.mydiller.uz |
 
 ## Ishga tushirish
 
@@ -33,7 +33,7 @@ npm run build   # production → dist/
 
 ## Konfig
 
-- Frontend API: har bir app ichida `src/shared/config.ts` → `https://api.milliycrm.uz/api/v1`
+- Frontend API: har bir app ichida `src/shared/config.ts` → `https://api.mydiller.uz/api/v1`
 - Backend: `backend/config.json` (DB, JWT, CORS, upload)
 
 ## Hujjatlar

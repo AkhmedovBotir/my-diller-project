@@ -17,13 +17,34 @@ export interface Xaridor {
   bank_account: string
   bank_name: string
   mfo: string
+  city?: string
+  mfy?: string
+  mfy_id?: number | null
+  birth_date?: string | null
   address: string
   lat: number | null
   lng: number | null
+  kurator_id?: number | null
   is_blocked: boolean
   blocked_reason: string
   created_at: string
   updated_at: string
+}
+
+export interface CatalogManufacturer {
+  id: number
+  company_name: string
+}
+
+export interface XaridorProfileResponse extends Xaridor {
+  profile_complete?: boolean
+  kurator?: {
+    id: number
+    first_name: string
+    last_name: string
+    phone: string
+    username?: string
+  }
 }
 
 export interface XaridorProfileInput {
@@ -32,6 +53,10 @@ export interface XaridorProfileInput {
   last_name: string
   phone: string
   username: string
+  city?: string
+  mfy?: string
+  mfy_id?: number | null
+  birth_date?: string
   stir?: string
   bank_account?: string
   bank_name?: string
@@ -63,6 +88,15 @@ export interface LoginResponse {
   xaridor: Xaridor
 }
 
+export interface Region {
+  id: number
+  parent_id?: number | null
+  name: string
+  code: string
+  type: 'region' | 'district' | 'mfy'
+  status: string
+}
+
 export interface Category {
   id: number
   name: string
@@ -86,6 +120,7 @@ export interface Product {
   id: number
   code: string
   ishlabchiqaruvchi_id: number
+  company_name?: string
   name: string
   city: string
   description: QuillDelta | string

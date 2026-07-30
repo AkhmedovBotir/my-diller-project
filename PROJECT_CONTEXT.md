@@ -81,13 +81,13 @@ Logistika kompaniyasi:
 ## 3. Monorepo va domenlar
 
 ```text
-landing/              → https://milliycrm.uz
-admin/                → https://admin.milliycrm.uz
-admin-kurator/        → https://kurator.milliycrm.uz
-ishlab chiqaruvchi/   → https://zavod.milliycrm.uz
-foydalanuvchi/        → https://user.milliycrm.uz
-dostavka/             → https://yetkazish.milliycrm.uz
-backend/              → https://api.milliycrm.uz
+landing/              → https://mydiller.uz
+admin/                → https://admin.mydiller.uz
+admin-kurator/        → https://kurator.mydiller.uz
+ishlab chiqaruvchi/   → https://zavod.mydiller.uz
+foydalanuvchi/        → https://user.mydiller.uz
+dostavka/             → https://yetkazish.mydiller.uz
+backend/              → https://api.mydiller.uz
 ```
 
 Har bir kabinet mustaqil SPA. Landing sahifa foydalanuvchini tegishli
@@ -96,7 +96,7 @@ production subdomeniga yo‘naltiradi.
 Frontend API manzili har bir kabinetning `src/shared/config.ts` faylida:
 
 ```ts
-export const API_URL = 'https://api.milliycrm.uz/api/v1'
+export const API_URL = 'https://api.mydiller.uz/api/v1'
 ```
 
 API manzilini `.env` yoki `VITE_API_URL` orqali boshqarish loyihada
@@ -412,18 +412,14 @@ xaridor katalog va order snapshot birga tekshiriladi.
 
 ## 16. Ma’lum texnik qarzlar
 
-- yakuniy to‘lovni zavod tasdiqlashida kvitansiya majburiyligi to‘liq
-  tekshirilmaydi;
-- komissiyaning “zavod to‘ladi” va “admin tasdiqladi” bosqichlari alohida
-  statuslarga ajratilmagan;
 - bekor qilingan buyurtma oqimi va stokni qaytarish mexanizmi yo‘q;
 - `config.json` ichidagi `domains` bo‘limi runtime config struct tomonidan
   ishlatilmaydi;
 - production JWT secret xavfsiz qiymatga almashtirilishi kerak;
 - Nginx upload uchun `client_max_body_size` backenddagi 5 MB limitdan kam
   bo‘lmasligi kerak;
-- admin frontendda `general` bo‘lmagan rollarga buyurtma menyusini ko‘rsatish,
-  product update payload va `limit > 100` so‘rovlari alohida tuzatilishi kerak.
+- kurator–xaridor/zavod chat (MFI/mahalla) va avatarli kurator tanlovi
+  hali to‘liq emas (daromad va komissiya ko‘rinishi qo‘shilgan).
 
 ## 17. Tekshirish buyruqlari
 

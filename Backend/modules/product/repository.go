@@ -185,31 +185,38 @@ func (r *Repository) GetApproved(ctx context.Context, id int64) (*Product, error
 	return p, nil
 }
 
-func (r *Repository) ListApproved(ctx context.Context, categoryID, subcategoryID int64, search string, limit, offset int) ([]Product, error) {
-	conditions := []string{"status = $1", activeFilter}
+func (r *Repository) ListApproved(ctx context.Context, categoryID, subcategoryID, ishlabchiqaruvchiID int64, search string, limit, offset int) ([]CatalogProduct, error) {
+	conditions := []string{"p.status = $1", "p.deleted_at IS NULL"}
 	args := []any{StatusApproved}
 	idx := 2
 
 	if categoryID > 0 {
-		conditions = append(conditions, fmt.Sprintf("category_id = $%d", idx))
+		conditions = append(conditions, fmt.Sprintf("p.category_id = $%d", idx))
 		args = append(args, categoryID)
 		idx++
 	}
 	if subcategoryID > 0 {
-		conditions = append(conditions, fmt.Sprintf("subcategory_id = $%d", idx))
+		conditions = append(conditions, fmt.Sprintf("p.subcategory_id = $%d", idx))
 		args = append(args, subcategoryID)
 		idx++
 	}
+	if ishlabchiqaruvchiID > 0 {
+		conditions = append(conditions, fmt.Sprintf("p.ishlabchiqaruvchi_id = $%d", idx))
+		args = append(args, ishlabchiqaruvchiID)
+		idx++
+	}
 	if search != "" {
-		conditions = append(conditions, fmt.Sprintf("(name ILIKE $%d OR code ILIKE $%d)", idx, idx))
+		conditions = append(conditions, fmt.Sprintf("(p.name ILIKE $%d OR p.code ILIKE $%d OR i.company_name ILIKE $%d)", idx, idx, idx))
 		args = append(args, "%"+search+"%")
 		idx++
 	}
 
 	query := fmt.Sprintf(`
-		SELECT %s FROM products
+		SELECT %s, i.company_name
+		FROM products p
+		INNER JOIN ishlabchiqaruvchilar i ON i.id = p.ishlabchiqaruvchi_id
 		WHERE %s
-		ORDER BY id DESC LIMIT $%d OFFSET $%d`, columns, strings.Join(conditions, " AND "), idx, idx+1)
+		ORDER BY p.id DESC LIMIT $%d OFFSET $%d`, columnsWithAlias("p"), strings.Join(conditions, " AND "), idx, idx+1)
 	args = append(args, limit, offset)
 
 	rows, err := r.pool.Query(ctx, query, args...)
@@ -217,7 +224,88 @@ func (r *Repository) ListApproved(ctx context.Context, categoryID, subcategoryID
 		return nil, fmt.Errorf("mahsulotlar ro'yxatini olib bo'lmadi: %w", err)
 	}
 	defer rows.Close()
-	return collectProducts(rows)
+	return collectCatalogProducts(rows)
+}
+
+func columnsWithAlias(alias string) string {
+	return fmt.Sprintf(`
+		%s.id, %s.code, %s.ishlabchiqaruvchi_id, %s.name, %s.city, %s.description, %s.category_id, %s.subcategory_id,
+		%s.price, %s.quantity, %s.moq, %s.payment_term, %s.payment_days, %s.specs, %s.images, %s.status,
+		%s.rejection_note, %s.reviewed_by, %s.reviewed_at, %s.deleted_at, %s.created_at, %s.updated_at`,
+		alias, alias, alias, alias, alias, alias, alias, alias,
+		alias, alias, alias, alias, alias, alias, alias, alias,
+		alias, alias, alias, alias, alias, alias)
+}
+
+func scanCatalogProduct(row pgx.Row) (*CatalogProduct, error) {
+	var item CatalogProduct
+	var desc []byte
+	var specs []byte
+	err := row.Scan(
+		&item.ID, &item.Code, &item.IshlabchiqaruvchiID, &item.Name, &item.City, &desc,
+		&item.CategoryID, &item.SubcategoryID, &item.Price, &item.Quantity,
+		&item.MOQ, &item.PaymentTerm, &item.PaymentDays, &specs, &item.Images,
+		&item.Status, &item.RejectionNote, &item.ReviewedBy, &item.ReviewedAt,
+		&item.DeletedAt, &item.CreatedAt, &item.UpdatedAt, &item.CompanyName,
+	)
+	if err != nil {
+		return nil, err
+	}
+	item.Description = json.RawMessage(desc)
+	item.Specs = json.RawMessage(specs)
+	if item.Images == nil {
+		item.Images = []string{}
+	}
+	return &item, nil
+}
+
+func collectCatalogProducts(rows pgx.Rows) ([]CatalogProduct, error) {
+	items := make([]CatalogProduct, 0)
+	for rows.Next() {
+		p, err := scanCatalogProduct(rows)
+		if err != nil {
+			return nil, fmt.Errorf("mahsulot ma'lumotlarini o'qib bo'lmadi: %w", err)
+		}
+		items = append(items, *p)
+	}
+	return items, rows.Err()
+}
+
+func (r *Repository) GetApprovedCatalog(ctx context.Context, id int64) (*CatalogProduct, error) {
+	query := fmt.Sprintf(`
+		SELECT %s, i.company_name
+		FROM products p
+		INNER JOIN ishlabchiqaruvchilar i ON i.id = p.ishlabchiqaruvchi_id
+		WHERE p.id = $1 AND p.status = $2 AND p.deleted_at IS NULL`, columnsWithAlias("p"))
+
+	item, err := scanCatalogProduct(r.pool.QueryRow(ctx, query, id, StatusApproved))
+	if err != nil {
+		return nil, mapError(err, "mahsulotni olib bo'lmadi")
+	}
+	return item, nil
+}
+
+func (r *Repository) ListCatalogManufacturers(ctx context.Context) ([]CatalogManufacturer, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT DISTINCT i.id, i.company_name
+		FROM ishlabchiqaruvchilar i
+		INNER JOIN products p ON p.ishlabchiqaruvchi_id = i.id
+		WHERE p.status = 'approved' AND p.deleted_at IS NULL
+		ORDER BY i.company_name ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("korxonalar ro'yxatini olib bo'lmadi: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]CatalogManufacturer, 0)
+	for rows.Next() {
+		var item CatalogManufacturer
+		if err := rows.Scan(&item.ID, &item.CompanyName); err != nil {
+			return nil, fmt.Errorf("korxona ma'lumotlarini o'qib bo'lmadi: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func collectProducts(rows pgx.Rows) ([]Product, error) {

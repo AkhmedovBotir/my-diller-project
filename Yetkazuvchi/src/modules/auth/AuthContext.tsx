@@ -8,20 +8,20 @@ import {
   type ReactNode,
 } from 'react'
 import { api, tokenStorage } from '../../shared/api'
-import type { Dostavka } from '../../shared/types'
+import type { ProfileResponse } from '../../shared/types'
 
 interface AuthContextValue {
-  user: Dostavka | null
+  user: ProfileResponse | null
   loading: boolean
-  login: (username: string, password: string) => Promise<Dostavka>
+  login: (username: string, password: string) => Promise<ProfileResponse>
   logout: () => void
-  setUser: (user: Dostavka) => void
+  setUser: (user: ProfileResponse) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Dostavka | null>(null)
+  const [user, setUser] = useState<ProfileResponse | null>(null)
   const [loading, setLoading] = useState(Boolean(tokenStorage.get()))
 
   useEffect(() => {
@@ -42,8 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     const result = await api.login(username, password)
     tokenStorage.set(result.token)
-    setUser(result.dostavka)
-    return result.dostavka
+    const profile = await api.profile()
+    setUser(profile)
+    return profile
   }, [])
 
   const logout = useCallback(() => {

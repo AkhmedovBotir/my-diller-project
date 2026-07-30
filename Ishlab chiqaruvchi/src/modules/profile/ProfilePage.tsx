@@ -13,6 +13,7 @@ import {
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
 import { LocationPicker } from '../../shared/LocationPicker'
+import { RegionCascade } from '../../shared/RegionCascade'
 import { isProfileComplete } from '../../shared/profileComplete'
 import { useSnackbar } from '../../shared/Snackbar'
 import { useAuth } from '../auth/AuthContext'
@@ -25,6 +26,7 @@ export function ProfilePage() {
   const [address, setAddress] = useState(user?.address ?? '')
   const [lat, setLat] = useState<number | null>(user?.lat ?? null)
   const [lng, setLng] = useState<number | null>(user?.lng ?? null)
+  const [mfyId, setMfyId] = useState<number | null>(user?.mfy_id ?? null)
 
   if (!user) return null
 
@@ -33,6 +35,13 @@ export function ProfilePage() {
     const formElement = event.currentTarget
     setSaving(true)
     setErrorField(undefined)
+
+    if (!mfyId) {
+      showSnackbar('MFY tanlanishi shart', 'error')
+      setErrorField('mfy_id')
+      setSaving(false)
+      return
+    }
 
     if (lat == null || lng == null) {
       showSnackbar('Xaritadan yuk olinadigan joyni tanlang', 'error')
@@ -56,6 +65,8 @@ export function ProfilePage() {
         last_name: String(form.get('last_name')),
         phone: String(form.get('phone')),
         username: String(form.get('username')),
+        mfy_id: mfyId,
+        birth_date: String(form.get('birth_date') ?? '').trim(),
         stir: String(form.get('stir') ?? '').trim(),
         bank_account: String(form.get('bank_account') ?? '').trim(),
         bank_name: String(form.get('bank_name') ?? '').trim(),
@@ -71,6 +82,7 @@ export function ProfilePage() {
       setAddress(refreshed.address)
       setLat(refreshed.lat)
       setLng(refreshed.lng)
+      setMfyId(refreshed.mfy_id ?? null)
       showSnackbar(
         isProfileComplete(refreshed)
           ? 'Profil muvaffaqiyatli yangilandi — endi to‘liq'
@@ -113,6 +125,14 @@ export function ProfilePage() {
         <div className="mt-7 space-y-4 border-t border-slate-100 pt-6">
           <ProfileMeta label="Korxona" value={user.company_name} />
           <ProfileMeta label="Telefon raqami" value={user.phone} />
+          {user.city && <ProfileMeta label="Shahar" value={user.city} />}
+          {user.mfy && <ProfileMeta label="MFY" value={user.mfy} />}
+          {user.kurator && (
+            <ProfileMeta
+              label="Kurator"
+              value={`${user.kurator.first_name} ${user.kurator.last_name} · ${user.kurator.phone}`}
+            />
+          )}
           <ProfileMeta label="Ro‘yxatdan o‘tgan" value={formatDateTime(user.created_at)} />
           {user.lat != null && user.lng != null && (
             <ProfileMeta label="Koordinata" value={`${user.lat.toFixed(5)}, ${user.lng.toFixed(5)}`} />
@@ -131,7 +151,7 @@ export function ProfilePage() {
             <AlertTriangle size={18} className="mt-0.5 shrink-0" />
             <p className="font-semibold">
               Mahsulot qo‘shishdan oldin profilni 100% to‘ldiring. Barcha maydonlar
-              (korxona, STIR, bank, MFO, manzil, xarita) to‘ldirilishi shart.
+              (korxona, STIR, bank, MFO, viloyat/tuman/MFY, tug‘ilgan sana, manzil, xarita) to‘ldirilishi shart.
             </p>
           </div>
         )}
@@ -150,6 +170,20 @@ export function ProfilePage() {
             <Field name="last_name" label="Familiya" defaultValue={user.last_name} invalid={errorField === 'last_name'} />
             <Field name="phone" label="Telefon raqami" defaultValue={user.phone} type="tel" invalid={errorField === 'phone'} />
             <Field name="username" label="Foydalanuvchi nomi" defaultValue={user.username} invalid={errorField === 'username'} />
+            <div className="sm:col-span-2">
+              <RegionCascade
+                value={mfyId}
+                onChange={setMfyId}
+                invalid={errorField === 'mfy_id'}
+              />
+            </div>
+            <Field
+              name="birth_date"
+              label="Tug‘ilgan sana"
+              type="date"
+              defaultValue={user.birth_date?.slice(0, 10) ?? ''}
+              invalid={errorField === 'birth_date'}
+            />
           </div>
 
           <div className="my-8 border-t border-slate-100" />

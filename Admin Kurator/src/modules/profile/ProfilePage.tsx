@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
-import { KeyRound, LoaderCircle, Save, ShieldCheck, UserRound } from 'lucide-react'
+import { KeyRound, LoaderCircle, MapPin, Save, ShieldCheck, UserRound } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
 import { useSnackbar } from '../../shared/Snackbar'
+import type { Region } from '../../shared/types'
 import { useAuth } from '../auth/AuthContext'
 
 const typeLabel: Record<string, string> = {
@@ -17,6 +18,27 @@ export function ProfilePage() {
   const { showSnackbar } = useSnackbar()
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [mfys, setMfys] = useState<Region[]>([])
+  const [mfysLoading, setMfysLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setMfysLoading(true)
+    api
+      .kuratorMfys()
+      .then((items) => {
+        if (!cancelled) setMfys(items)
+      })
+      .catch(() => {
+        if (!cancelled) setMfys([])
+      })
+      .finally(() => {
+        if (!cancelled) setMfysLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   if (!user) return null
 
@@ -33,6 +55,8 @@ export function ProfilePage() {
         last_name: String(form.get('last_name')),
         phone: String(form.get('phone')),
         username: String(form.get('username')),
+        birth_date: String(form.get('birth_date')),
+        residence_address: String(form.get('residence_address')),
         ...(password ? { password } : {}),
       })
       setUser(updated)
@@ -81,7 +105,50 @@ export function ProfilePage() {
             <Field name="last_name" label="Familiya" defaultValue={user.last_name} invalid={errorField === 'last_name'} />
             <Field name="phone" label="Telefon raqami" defaultValue={user.phone} type="tel" invalid={errorField === 'phone'} />
             <Field name="username" label="Foydalanuvchi nomi" defaultValue={user.username} invalid={errorField === 'username'} />
+            <Field
+              name="birth_date"
+              label="Tug‘ilgan sana"
+              type="date"
+              defaultValue={user.birth_date?.slice(0, 10) ?? ''}
+              invalid={errorField === 'birth_date'}
+            />
+            <Field
+              name="residence_address"
+              label="Yashash manzili"
+              defaultValue={user.residence_address ?? ''}
+              className="sm:col-span-2"
+              invalid={errorField === 'residence_address'}
+            />
           </div>
+
+          <div className="my-8 border-t border-slate-100" />
+          <div className="mb-5 flex items-center gap-3">
+            <div className="grid size-9 place-items-center rounded-xl bg-[#eff8f3] text-[#397461]">
+              <MapPin size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-700">Biriktirilgan MFYlar</p>
+              <p className="text-xs text-slate-400">Faqat o‘qish — admin tomonidan belgilanadi</p>
+            </div>
+          </div>
+          {mfysLoading ? (
+            <p className="text-sm text-slate-400">Yuklanmoqda...</p>
+          ) : mfys.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-500">
+              Hali MFY biriktirilmagan
+            </p>
+          ) : (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {mfys.map((item) => (
+                <li
+                  key={item.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm font-semibold text-slate-700"
+                >
+                  {item.name}
+                </li>
+              ))}
+            </ul>
+          )}
 
           <div className="my-8 border-t border-slate-100" />
           <div className="mb-5 flex items-center gap-3">

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -11,8 +12,8 @@ import (
 )
 
 const columns = `id, shop_name, first_name, last_name, phone, username, password_hash,
-	stir, bank_account, bank_name, mfo, address, lat, lng, is_blocked, blocked_reason,
-	created_at, updated_at`
+	stir, bank_account, bank_name, mfo, city, mfy, birth_date, address, lat, lng, kurator_id,
+	mfy_id, is_blocked, blocked_reason, created_at, updated_at`
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -27,8 +28,10 @@ func scanRow(row pgx.Row) (*Xaridor, error) {
 	err := row.Scan(
 		&item.ID, &item.ShopName, &item.FirstName, &item.LastName,
 		&item.Phone, &item.Username, &item.PasswordHash,
-		&item.Stir, &item.BankAccount, &item.BankName, &item.MFO, &item.Address,
-		&item.Lat, &item.Lng, &item.IsBlocked, &item.BlockedReason,
+		&item.Stir, &item.BankAccount, &item.BankName, &item.MFO,
+		&item.City, &item.MFY, &item.BirthDate, &item.Address,
+		&item.Lat, &item.Lng, &item.KuratorID, &item.MFYID,
+		&item.IsBlocked, &item.BlockedReason,
 		&item.CreatedAt, &item.UpdatedAt,
 	)
 	if err != nil {
@@ -130,26 +133,44 @@ func (r *Repository) Update(ctx context.Context, id int64, input UpdateInput, pa
 	return item, nil
 }
 
-func (r *Repository) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput, passwordHash string) (*Xaridor, error) {
+func (r *Repository) UpdateProfile(ctx context.Context, id int64, input UpdateProfileInput, passwordHash string, birthDate *time.Time, kuratorID *int64) (*Xaridor, error) {
 	query := fmt.Sprintf(`
 		UPDATE xaridorlar
 		SET shop_name = $1, first_name = $2, last_name = $3, phone = $4, username = $5,
 		    password_hash = COALESCE(NULLIF($6, ''), password_hash),
-		    stir = $7, bank_account = $8, bank_name = $9, mfo = $10, address = $11, lat = $12, lng = $13,
+		    city = $7, mfy = $8, birth_date = $9,
+		    stir = $10, bank_account = $11, bank_name = $12, mfo = $13, address = $14, lat = $15, lng = $16,
+		    kurator_id = $17, mfy_id = $18,
 		    updated_at = now()
-		WHERE id = $14
+		WHERE id = $19
 		RETURNING %s`, columns)
 
 	item, err := scanRow(r.pool.QueryRow(ctx, query,
 		input.ShopName, input.FirstName, input.LastName,
 		input.Phone, input.Username, passwordHash,
+		input.City, input.MFY, birthDate,
 		input.Stir, input.BankAccount, input.BankName, input.MFO, input.Address, input.Lat, input.Lng,
-		id,
+		kuratorID, input.MFYID, id,
 	))
 	if err != nil {
 		return nil, mapError(err, "profilni yangilab bo'lmadi")
 	}
 	return item, nil
+}
+
+func (r *Repository) GetKuratorSummary(ctx context.Context, kuratorID int64) (*KuratorSummary, error) {
+	var k KuratorSummary
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, first_name, last_name, phone, username
+		FROM admins WHERE id = $1 AND type = 'kurator'`, kuratorID,
+	).Scan(&k.ID, &k.FirstName, &k.LastName, &k.Phone, &k.Username)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("kurator ma'lumotlarini olib bo'lmadi: %w", err)
+	}
+	return &k, nil
 }
 
 func (r *Repository) Block(ctx context.Context, id int64, reason string) (*Xaridor, error) {

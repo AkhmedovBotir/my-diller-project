@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -63,14 +64,14 @@ func (s *Service) GetByID(ctx context.Context, id int64) (*Admin, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *Service) List(ctx context.Context, limit, offset int) ([]Admin, error) {
+func (s *Service) List(ctx context.Context, adminType string, limit, offset int) ([]Admin, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
 	if offset < 0 {
 		offset = 0
 	}
-	return s.repo.List(ctx, limit, offset)
+	return s.repo.List(ctx, adminType, limit, offset)
 }
 
 func (s *Service) Update(ctx context.Context, id int64, input UpdateAdminInput) (*Admin, error) {
@@ -102,7 +103,24 @@ func (s *Service) UpdateProfile(ctx context.Context, id int64, input UpdateProfi
 		}
 	}
 
-	return s.repo.UpdateProfile(ctx, id, input, hash)
+	birthDate, err := parseBirthDate(input.BirthDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.UpdateProfile(ctx, id, input, hash, birthDate)
+}
+
+func parseBirthDate(raw string) (*time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	t, err := time.Parse("2006-01-02", raw)
+	if err != nil {
+		return nil, validationError("birth_date", "Tug'ilgan sana YYYY-MM-DD formatida bo'lishi kerak")
+	}
+	return &t, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id int64) error {

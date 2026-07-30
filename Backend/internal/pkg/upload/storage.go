@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+
+	"diller-backend/internal/pkg/imageutil"
 )
 
 const (
@@ -18,11 +20,11 @@ const (
 	MinImages     = 1
 )
 
-var allowedImageTypes = map[string]string{
-	"image/jpeg": ".jpg",
-	"image/png":  ".png",
-	"image/webp": ".webp",
-	"image/gif":  ".gif",
+var allowedImageTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/webp": true,
+	"image/gif":  true,
 }
 
 type Storage struct {
@@ -53,6 +55,7 @@ func (s *Storage) PublicURL(relativePath string) string {
 }
 
 // SaveProductImages yuklangan rasmlarni saqlaydi va public URL ro'yxatini qaytaradi.
+// Rasmlar avtomatik 4:3 formatga moslashtiriladi.
 func (s *Storage) SaveProductImages(files []*multipart.FileHeader) ([]string, error) {
 	if len(files) < MinImages {
 		return nil, fmt.Errorf("kamida %d ta rasm yuklash shart", MinImages)
@@ -85,8 +88,7 @@ func (s *Storage) SaveProductImages(files []*multipart.FileHeader) ([]string, er
 		buf := make([]byte, 512)
 		n, _ := file.Read(buf)
 		contentType := http.DetectContentType(buf[:n])
-		ext, ok := allowedImageTypes[contentType]
-		if !ok {
+		if !allowedImageTypes[contentType] {
 			_ = file.Close()
 			cleanup()
 			return nil, fmt.Errorf("ruxsat etilmagan rasm turi: %s (faqat jpeg, png, webp, gif)", header.Filename)
@@ -98,26 +100,21 @@ func (s *Storage) SaveProductImages(files []*multipart.FileHeader) ([]string, er
 			return nil, fmt.Errorf("rasmni o'qib bo'lmadi: %w", err)
 		}
 
-		relative := filepath.ToSlash(filepath.Join("products", uuid.NewString()+ext))
+		normalized, err := imageutil.NormalizeProductImage(file)
+		_ = file.Close()
+		if err != nil {
+			cleanup()
+			return nil, err
+		}
+
+		relative := filepath.ToSlash(filepath.Join("products", uuid.NewString()+".jpg"))
 		fullPath := filepath.Join(s.dir, filepath.FromSlash(relative))
 
-		out, err := os.Create(fullPath)
-		if err != nil {
-			_ = file.Close()
+		if err := os.WriteFile(fullPath, normalized, 0o644); err != nil {
 			cleanup()
 			return nil, fmt.Errorf("rasmni saqlab bo'lmadi: %w", err)
 		}
 
-		if _, err := io.Copy(out, file); err != nil {
-			_ = out.Close()
-			_ = file.Close()
-			cleanup()
-			_ = os.Remove(fullPath)
-			return nil, fmt.Errorf("rasmni yozib bo'lmadi: %w", err)
-		}
-
-		_ = out.Close()
-		_ = file.Close()
 		saved = append(saved, fullPath)
 		urls = append(urls, s.PublicURL(relative))
 	}
