@@ -8,12 +8,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
+
+	"diller-backend/internal/pkg/console"
 )
 
 // Start HTTP serverni ishga tushiradi va graceful shutdown'ni boshqaradi.
-func Start(port string, handler http.Handler) error {
+func Start(port string, handler http.Handler, env string) error {
 	srv := &http.Server{
 		Addr:         ":" + port,
 		Handler:      handler,
@@ -21,6 +24,15 @@ func Start(port string, handler http.Handler) error {
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  time.Minute,
 	}
+
+	p, _ := strconv.Atoi(port)
+	if p == 0 {
+		p = 8080
+	}
+	if env == "" {
+		env = "development"
+	}
+	console.Banner(p, env)
 
 	errCh := make(chan error, 1)
 	go func() {

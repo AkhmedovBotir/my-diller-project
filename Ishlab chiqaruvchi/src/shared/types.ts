@@ -75,6 +75,14 @@ export interface LoginResponse {
   ishlabchiqaruvchi: Ishlabchiqaruvchi
 }
 
+export interface SmsChallenge {
+  sms_required: true
+  challenge_id: string
+  phone_masked: string
+  expires_in: number
+  resend_after: number
+}
+
 export interface Category {
   id: number
   name: string
@@ -260,6 +268,8 @@ export interface ApiError {
     | 'RUXSAT_YOQ'
     | 'TOPILMADI'
     | 'TAKRORIY_MALUMOT'
+    | 'JUDA_KOP_SOROV'
+    | 'TASHQI_XIZMAT_XATOSI'
     | 'ICHKI_SERVER_XATOSI'
   message: string
   field?: string

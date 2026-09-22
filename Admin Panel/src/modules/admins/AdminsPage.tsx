@@ -15,7 +15,10 @@ import {
   X,
 } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
+import { CustomSelect } from '../../shared/CustomSelect'
 import { formatDateTime } from '../../shared/date'
+import { PasswordInput } from '../../shared/PasswordInput'
+import { PhoneInput } from '../../shared/PhoneInput'
 import { useSnackbar } from '../../shared/Snackbar'
 import type { Admin, AdminInput, AdminRole } from '../../shared/types'
 
@@ -404,6 +407,7 @@ function AdminFormModal({
   const { showSnackbar } = useSnackbar()
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [adminType, setAdminType] = useState<AdminRole>(admin?.type ?? defaultType ?? 'admin')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -416,7 +420,7 @@ function AdminFormModal({
       phone: String(form.get('phone')),
       username: String(form.get('username')),
       password: String(form.get('password')),
-      type: String(form.get('type')) as AdminRole,
+      type: hideTypeField ? (defaultType ?? 'kurator') : adminType,
     }
     if (admin && !input.password) delete input.password
     try {
@@ -448,33 +452,29 @@ function AdminFormModal({
         <div className="grid gap-4 sm:grid-cols-2">
           <ModalField name="first_name" label="Ism" defaultValue={admin?.first_name} invalid={errorField === 'first_name'} />
           <ModalField name="last_name" label="Familiya" defaultValue={admin?.last_name} invalid={errorField === 'last_name'} />
-          <ModalField name="phone" label="Telefon" type="tel" defaultValue={admin?.phone} placeholder="+998 90 123 45 67" invalid={errorField === 'phone'} />
+          <PhoneInput label="Telefon" defaultValue={admin?.phone} invalid={errorField === 'phone'} size="sm" />
           <ModalField name="username" label="Login" defaultValue={admin?.username} invalid={errorField === 'username'} />
           {!hideTypeField ? (
-            <label className="block">
-              <span className="mb-2 block text-xs font-bold text-slate-600">Admin turi</span>
-              <select
-                name="type"
-                defaultValue={admin?.type ?? defaultType ?? 'admin'}
-                className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
-                  errorField === 'type' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
-                }`}
-              >
-                <option value="general">General</option>
-                <option value="admin">Admin</option>
-                <option value="kurator">Kurator</option>
-              </select>
-            </label>
+            <CustomSelect
+              label="Admin turi"
+              name="type"
+              value={adminType}
+              invalid={errorField === 'type'}
+              options={[
+                { value: 'general', label: 'General' },
+                { value: 'admin', label: 'Admin' },
+                { value: 'kurator', label: 'Kurator' },
+              ]}
+              onChange={(value) => setAdminType(value as AdminRole)}
+            />
           ) : (
             <input type="hidden" name="type" value={defaultType ?? 'kurator'} />
           )}
-          <ModalField
-            name="password"
+          <PasswordInput
             label={admin ? 'Yangi parol (ixtiyoriy)' : 'Parol'}
-            type="password"
             required={!admin}
-            placeholder="Kamida 6 ta belgi"
             invalid={errorField === 'password'}
+            size="sm"
           />
         </div>
         <div className="mt-6 flex justify-end gap-3">
@@ -623,40 +623,33 @@ function KuratorMfysModal({ kurator, onClose }: { kurator: Admin; onClose: () =>
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-3">
-              <select
+              <CustomSelect
+                label="Viloyat"
                 value={regionId}
-                onChange={(event) => setRegionId(event.target.value)}
-                className="h-11 rounded-xl border border-slate-200 px-3 text-sm"
-              >
-                <option value="">Viloyat</option>
-                {regions.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </select>
-              <select
+                placeholder="Viloyat"
+                options={regions.map((item) => ({ value: String(item.id), label: item.name }))}
+                onChange={(value) => setRegionId(value)}
+              />
+              <CustomSelect
+                label="Tuman"
                 value={districtId}
-                onChange={(event) => setDistrictId(event.target.value)}
-                className="h-11 rounded-xl border border-slate-200 px-3 text-sm"
-              >
-                <option value="">Tuman</option>
-                {districts.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </select>
-              <select
+                placeholder="Tuman"
+                disabled={!regionId}
+                options={districts.map((item) => ({ value: String(item.id), label: item.name }))}
+                onChange={(value) => setDistrictId(value)}
+              />
+              <CustomSelect
+                label="MFY qo‘shish"
                 value=""
-                onChange={(event) => {
-                  const id = Number(event.target.value)
+                placeholder="MFY qo‘shish..."
+                disabled={!districtId || mfys.length === 0}
+                options={mfys.map((item) => ({ value: String(item.id), label: item.name }))}
+                onChange={(value) => {
+                  const id = Number(value)
                   const item = mfys.find((row) => row.id === id)
                   if (item) toggleMfy(item)
                 }}
-                className="h-11 rounded-xl border border-slate-200 px-3 text-sm"
-              >
-                <option value="">MFY qo‘shish...</option>
-                {mfys.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </select>
+              />
             </div>
             <div className="flex flex-wrap gap-2">
               {selected.length === 0 && <p className="text-sm text-slate-400">Hali MFY tanlanmagan</p>}

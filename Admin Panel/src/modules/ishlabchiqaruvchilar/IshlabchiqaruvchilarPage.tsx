@@ -14,7 +14,10 @@ import {
   X,
 } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
+import { CustomSelect } from '../../shared/CustomSelect'
 import { formatDateTime } from '../../shared/date'
+import { PasswordInput } from '../../shared/PasswordInput'
+import { PhoneInput } from '../../shared/PhoneInput'
 import { useSnackbar } from '../../shared/Snackbar'
 import type { Admin, Ishlabchiqaruvchi, IshlabchiqaruvchiInput } from '../../shared/types'
 
@@ -352,13 +355,13 @@ function FormModal({
   const { showSnackbar } = useSnackbar()
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [kuratorId, setKuratorId] = useState(item?.kurator_id ? String(item.kurator_id) : '')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSaving(true)
     setErrorField(undefined)
     const form = new FormData(event.currentTarget)
-    const kuratorRaw = String(form.get('kurator_id') ?? '')
     const input: IshlabchiqaruvchiInput = {
       company_name: String(form.get('company_name')),
       first_name: String(form.get('first_name')),
@@ -371,7 +374,7 @@ function FormModal({
       bank_account: String(form.get('bank_account') || ''),
       mfo: String(form.get('mfo') || ''),
       address: String(form.get('address') || ''),
-      kurator_id: kuratorRaw ? Number(kuratorRaw) : null,
+      kurator_id: kuratorId ? Number(kuratorId) : null,
     }
     if (item && !input.password) delete input.password
     try {
@@ -414,14 +417,7 @@ function FormModal({
           />
           <Field name="first_name" label="Ism" defaultValue={item?.first_name} invalid={errorField === 'first_name'} />
           <Field name="last_name" label="Familiya" defaultValue={item?.last_name} invalid={errorField === 'last_name'} />
-          <Field
-            name="phone"
-            label="Telefon"
-            type="tel"
-            defaultValue={item?.phone}
-            placeholder="+998 90 123 45 67"
-            invalid={errorField === 'phone'}
-          />
+          <PhoneInput label="Telefon" defaultValue={item?.phone} invalid={errorField === 'phone'} size="sm" />
           <Field name="username" label="Login" defaultValue={item?.username} invalid={errorField === 'username'} />
           <Field name="stir" label="STIR" required={false} defaultValue={item?.stir} invalid={errorField === 'stir'} />
           <Field name="bank_name" label="Bank nomi" required={false} defaultValue={item?.bank_name} invalid={errorField === 'bank_name'} />
@@ -440,30 +436,26 @@ function FormModal({
             defaultValue={item?.address}
             invalid={errorField === 'address'}
           />
-          <label className="block">
-            <span className="mb-2 block text-xs font-bold text-slate-600">Kurator</span>
-            <select
-              name="kurator_id"
-              defaultValue={item?.kurator_id ? String(item.kurator_id) : ''}
-              className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
-                errorField === 'kurator_id' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
-              }`}
-            >
-              <option value="">Biriktirilmagan</option>
-              {kurators.map((kurator) => (
-                <option key={kurator.id} value={kurator.id}>
-                  {kurator.first_name} {kurator.last_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field
-            name="password"
+          <CustomSelect
+            label="Kurator"
+            name="kurator_id"
+            value={kuratorId}
+            invalid={errorField === 'kurator_id'}
+            placeholder="Biriktirilmagan"
+            options={[
+              { value: '', label: 'Biriktirilmagan' },
+              ...kurators.map((kurator) => ({
+                value: String(kurator.id),
+                label: `${kurator.first_name} ${kurator.last_name}`,
+              })),
+            ]}
+            onChange={setKuratorId}
+          />
+          <PasswordInput
             label={item ? 'Yangi parol (ixtiyoriy)' : 'Parol'}
-            type="password"
             required={!item}
-            placeholder="Kamida 6 ta belgi"
             invalid={errorField === 'password'}
+            size="sm"
             className="sm:col-span-2"
           />
         </div>

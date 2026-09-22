@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"diller-backend/internal/pkg/auth"
+	"diller-backend/modules/eskiz"
 )
 
 type Module struct {
@@ -16,9 +17,9 @@ type Module struct {
 	Service   *Service
 }
 
-func NewModule(pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration) *Module {
+func NewModule(pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration, sms *eskiz.Service) *Module {
 	repo := NewRepository(pool)
-	service := NewService(repo, pool, jwtSecret, jwtTTL)
+	service := NewService(repo, pool, jwtSecret, jwtTTL, sms)
 	handler := NewHandler(service)
 
 	return &Module{
@@ -31,6 +32,10 @@ func NewModule(pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration) *Modu
 func (m *Module) RegisterRoutes(r chi.Router) {
 	r.Route("/dostavka", func(r chi.Router) {
 		r.Post("/auth/login", m.handler.Login)
+		r.Post("/auth/login/verify", m.handler.VerifyLogin)
+		r.Post("/auth/sms/resend", m.handler.ResendSMS)
+		r.Post("/auth/forgot", m.handler.ForgotPassword)
+		r.Post("/auth/reset", m.handler.ResetPassword)
 
 		// Dostavka kompaniyasi o'z profili
 		r.Group(func(r chi.Router) {

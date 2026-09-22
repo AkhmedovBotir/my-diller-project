@@ -8,12 +8,14 @@ import (
 )
 
 type Config struct {
-	AppEnv   string         `json:"app_env"`
-	HTTPPort string         `json:"http_port"`
-	Database DatabaseConfig `json:"database"`
-	JWT      JWTConfig      `json:"jwt"`
-	CORS     CORSConfig     `json:"cors"`
-	Upload   UploadConfig   `json:"upload"`
+	AppEnv        string         `json:"app_env"`
+	HTTPPort      string         `json:"http_port"`
+	Database      DatabaseConfig `json:"database"`
+	BirgaDatabase DatabaseConfig `json:"birga_database"`
+	JWT           JWTConfig      `json:"jwt"`
+	CORS          CORSConfig     `json:"cors"`
+	Upload        UploadConfig   `json:"upload"`
+	Eskiz         EskizConfig    `json:"eskiz"`
 }
 
 type DatabaseConfig struct {
@@ -43,12 +45,37 @@ type UploadConfig struct {
 	PublicBaseURL string `json:"public_base_url"`
 }
 
+type EskizConfig struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	From     string `json:"from"`
+	BaseURL  string `json:"base_url"`
+}
+
 func (c *Config) DatabaseDSN() string {
+	return c.Database.DSN()
+}
+
+func (c *Config) BirgaDatabaseDSN() string {
+	return c.BirgaDatabase.DSN()
+}
+
+func (d DatabaseConfig) DSN() string {
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		c.Database.User, c.Database.Password,
-		c.Database.Host, c.Database.Port,
-		c.Database.Name, c.Database.SSLMode,
+		d.User, d.Password,
+		d.Host, d.Port,
+		d.Name, d.SSLMode,
+	)
+}
+
+// SystemDSN postgres tizim bazasiga (CREATE DATABASE uchun) ulanish.
+func (d DatabaseConfig) SystemDSN() string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/postgres?sslmode=%s",
+		d.User, d.Password,
+		d.Host, d.Port,
+		d.SSLMode,
 	)
 }
 
@@ -98,6 +125,27 @@ func (c *Config) applyDefaults() {
 	if c.Database.SSLMode == "" {
 		c.Database.SSLMode = "disable"
 	}
+	if c.BirgaDatabase.Host == "" {
+		c.BirgaDatabase.Host = c.Database.Host
+	}
+	if c.BirgaDatabase.Port == "" {
+		c.BirgaDatabase.Port = c.Database.Port
+	}
+	if c.BirgaDatabase.User == "" {
+		c.BirgaDatabase.User = c.Database.User
+	}
+	if c.BirgaDatabase.Password == "" {
+		c.BirgaDatabase.Password = c.Database.Password
+	}
+	if c.BirgaDatabase.Name == "" {
+		c.BirgaDatabase.Name = "birga_xarid"
+	}
+	if c.BirgaDatabase.SSLMode == "" {
+		c.BirgaDatabase.SSLMode = c.Database.SSLMode
+		if c.BirgaDatabase.SSLMode == "" {
+			c.BirgaDatabase.SSLMode = "disable"
+		}
+	}
 	if c.JWT.Secret == "" {
 		c.JWT.Secret = "change-me-in-production"
 	}
@@ -121,5 +169,11 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Upload.PublicBaseURL == "" {
 		c.Upload.PublicBaseURL = "http://localhost:" + c.HTTPPort + "/uploads"
+	}
+	if c.Eskiz.BaseURL == "" {
+		c.Eskiz.BaseURL = "https://notify.eskiz.uz/api"
+	}
+	if c.Eskiz.From == "" {
+		c.Eskiz.From = "4546"
 	}
 }

@@ -42,6 +42,26 @@ export const paymentTermLabel: Record<PaymentTerm, string> = {
   pod_zakaz_50_50: 'Buyurtma asosida 50/50',
 }
 
+/** 1000000 → "1 000 000" */
+export function formatGroupedNumber(value: number) {
+  const n = Math.round(Number(value) || 0)
+  const neg = n < 0
+  const digits = Math.abs(n).toString()
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return (neg ? '-' : '') + grouped
+}
+
 export function formatMoney(value: number) {
-  return new Intl.NumberFormat('uz-UZ').format(value) + ' so‘m'
+  return formatGroupedNumber(value) + ' so‘m'
+}
+
+/** Input uchun: "1 000 000" */
+export function formatMoneyInput(raw: string) {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
+export function parseMoneyInput(raw: string) {
+  return Number(raw.replace(/\s/g, '').replace(/[^\d]/g, '')) || 0
 }

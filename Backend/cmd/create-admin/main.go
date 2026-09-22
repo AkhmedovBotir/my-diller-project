@@ -46,7 +46,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	service := admin.NewService(admin.NewRepository(pool), cfg.JWT.Secret, cfg.JWTTTL())
+	service := admin.NewService(admin.NewRepository(pool), cfg.JWT.Secret, cfg.JWTTTL(), nil)
 
 	a, err := service.Create(ctx, admin.CreateAdminInput{
 		FirstName: *firstName,

@@ -1,23 +1,43 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, LoaderCircle, Percent, Save, ShieldCheck, Sparkles, Wallet } from 'lucide-react'
+import {
+  AlertTriangle,
+  Layers3,
+  LoaderCircle,
+  Percent,
+  Save,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Wallet,
+} from 'lucide-react'
 import { api, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
+import { formatMoneyInput, parseMoneyInput } from '../../shared/order'
 import { useSnackbar } from '../../shared/Snackbar'
-import type { PlatformSettings } from '../../shared/types'
+import type { BirgaSettings, PlatformSettings } from '../../shared/types'
 
 export function PlatformSettingsPage() {
   const { showSnackbar } = useSnackbar()
   const [settings, setSettings] = useState<PlatformSettings | null>(null)
+  const [birga, setBirga] = useState<BirgaSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [savingBirga, setSavingBirga] = useState(false)
+  const [minOrderText, setMinOrderText] = useState('0')
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      setSettings(await api.platformSettings())
+      const [platform, birgaSettings] = await Promise.all([
+        api.platformSettings(),
+        api.birgaSettings(),
+      ])
+      setSettings(platform)
+      setBirga(birgaSettings)
+      setMinOrderText(formatMoneyInput(String(birgaSettings.min_order_amount)))
     } catch (loadError) {
       setError(getErrorMessage(loadError))
     } finally {
@@ -48,6 +68,22 @@ export function PlatformSettingsPage() {
       showSnackbar(getErrorMessage(saveError), 'error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleBirgaSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSavingBirga(true)
+    try {
+      const amount = parseMoneyInput(minOrderText)
+      const updated = await api.updateBirgaSettings({ min_order_amount: amount })
+      setBirga(updated)
+      setMinOrderText(formatMoneyInput(String(updated.min_order_amount)))
+      showSnackbar('Birga Xarid sozlamasi saqlandi')
+    } catch (saveError) {
+      showSnackbar(getErrorMessage(saveError), 'error')
+    } finally {
+      setSavingBirga(false)
     }
   }
 
@@ -85,7 +121,7 @@ export function PlatformSettingsPage() {
           </div>
           <h2 className="text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">Umumiy platforma parametrlari</h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-emerald-50/60">
-            Komissiya foizi, aksiya rejimi va zaxira balansini shu yerdan boshqaring
+            Komissiya foizi, aksiya rejimi, zaxira balans va Birga Xarid minimal buyurtma summasi
           </p>
         </div>
       </section>
@@ -186,6 +222,58 @@ export function PlatformSettingsPage() {
           >
             {saving ? <LoaderCircle className="animate-spin" size={17} /> : <Save size={17} />}
             {saving ? 'Saqlanmoqda...' : 'O‘zgarishlarni saqlash'}
+          </motion.button>
+        </div>
+      </form>
+
+      <form
+        onSubmit={(event) => void handleBirgaSubmit(event)}
+        className="rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8"
+      >
+        <div className="mb-5 flex items-center gap-3">
+          <div className="grid size-11 place-items-center rounded-2xl bg-[#c9f560]/40 text-[#173c32]">
+            <Layers3 size={20} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Birga Xarid</h3>
+            <p className="text-sm text-slate-500">Jamoaviy xarid buyurtmalari uchun minimal summa</p>
+          </div>
+        </div>
+
+        <label className="block max-w-md">
+          <span className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-600">
+            <ShoppingBag size={14} className="text-[#397461]" />
+            Minimal buyurtma summasi (so‘m)
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={minOrderText}
+            onChange={(event) => setMinOrderText(formatMoneyInput(event.target.value))}
+            className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/40 px-4 text-sm outline-none transition focus:border-[#397461] focus:bg-white focus:ring-4 focus:ring-[#397461]/8"
+            placeholder="0"
+          />
+          <p className="mt-1.5 text-xs text-slate-400">
+            0 bo‘lsa cheklov yo‘q. User savat/buyurtma jami shu summadan kam bo‘lsa buyurtma
+            berilmaydi.
+          </p>
+        </label>
+
+        {birga ? (
+          <p className="mt-4 text-xs text-slate-400">
+            Oxirgi yangilanish: {formatDateTime(birga.updated_at)}
+          </p>
+        ) : null}
+
+        <div className="mt-6 flex justify-end">
+          <motion.button
+            type="submit"
+            whileTap={{ scale: 0.98 }}
+            disabled={savingBirga}
+            className="flex h-11 items-center gap-2 rounded-xl bg-[#173c32] px-5 text-sm font-bold text-white shadow-lg shadow-[#173c32]/10 disabled:opacity-60"
+          >
+            {savingBirga ? <LoaderCircle className="animate-spin" size={17} /> : <Save size={17} />}
+            {savingBirga ? 'Saqlanmoqda...' : 'Birga sozlamasini saqlash'}
           </motion.button>
         </div>
       </form>

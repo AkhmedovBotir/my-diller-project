@@ -1,7 +1,29 @@
 import type { Order, OrderStatus, PaymentTerm } from './types'
 
+/** 1000000 → "1 000 000" */
+export function formatGroupedNumber(value: number) {
+  const n = Math.round(Number(value) || 0)
+  const neg = n < 0
+  const digits = Math.abs(n).toString()
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return (neg ? '-' : '') + grouped
+}
+
 export function formatPrice(value: number) {
-  return new Intl.NumberFormat('uz-UZ').format(value) + ' so‘m'
+  return formatGroupedNumber(value) + ' so‘m'
+}
+
+export const formatMoney = formatPrice
+
+/** Input uchun: "1 000 000" */
+export function formatMoneyInput(raw: string) {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
+export function parseMoneyInput(raw: string) {
+  return Number(raw.replace(/\s/g, '').replace(/[^\d]/g, '')) || 0
 }
 
 export const ORDER_STATUSES: OrderStatus[] = [

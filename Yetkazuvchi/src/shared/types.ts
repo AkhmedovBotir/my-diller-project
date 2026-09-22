@@ -51,6 +51,14 @@ export interface LoginResponse {
   dostavka: Dostavka
 }
 
+export interface SmsChallenge {
+  sms_required: true
+  challenge_id: string
+  phone_masked: string
+  expires_in: number
+  resend_after: number
+}
+
 export type OrderStatus =
   | 'yangi'
   | 'qabul_qilindi'
@@ -137,7 +145,48 @@ export interface ApiError {
     | 'RUXSAT_YOQ'
     | 'TOPILMADI'
     | 'TAKRORIY_MALUMOT'
+    | 'JUDA_KOP_SOROV'
+    | 'TASHQI_XIZMAT_XATOSI'
     | 'ICHKI_SERVER_XATOSI'
   message: string
   field?: string
+}
+
+export type BirgaOrderStatus =
+  | 'collecting'
+  | 'awaiting_courier'
+  | 'with_courier'
+  | 'issued'
+  | 'cancelled'
+
+export interface BirgaOrderItem {
+  id?: number
+  group_buy_id?: number
+  product_id: number
+  quantity: number
+  product_name?: string
+  photo_url?: string
+}
+
+export interface BirgaOrder {
+  id: number
+  customer_id: number
+  group_buy_id: number
+  quantity: number
+  unit_price: number
+  total_amount: number
+  status: BirgaOrderStatus | string
+  pickup_code?: string
+  courier_id?: number | null
+  title_snapshot: string
+  photo_snapshot: string
+  customer_phone?: string
+  customer_name?: string
+  region_name?: string
+  city_name?: string
+  mfy_name?: string
+  address?: string
+  items?: BirgaOrderItem[]
+  created_at: string
+  updated_at: string
 }

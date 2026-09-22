@@ -10,6 +10,7 @@ import (
 
 	"diller-backend/internal/pkg/auth"
 	"diller-backend/internal/pkg/httputil"
+	"diller-backend/modules/eskiz"
 )
 
 type Handler struct {
@@ -36,6 +37,22 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	httputil.JSON(w, http.StatusOK, resp)
 }
 
+func (h *Handler) VerifyLogin(w http.ResponseWriter, r *http.Request) {
+	var input eskiz.VerifyInput
+	if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
+		httputil.FieldError(w, http.StatusBadRequest, field, message)
+		return
+	}
+
+	resp, err := h.service.VerifyLogin(r.Context(), input)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, resp)
+}
+
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var input RegisterInput
 	if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
@@ -49,7 +66,75 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	httputil.JSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) VerifyRegister(w http.ResponseWriter, r *http.Request) {
+	var input eskiz.VerifyInput
+	if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
+		httputil.FieldError(w, http.StatusBadRequest, field, message)
+		return
+	}
+
+	resp, err := h.service.VerifyRegister(r.Context(), input)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+
 	httputil.JSON(w, http.StatusCreated, resp)
+}
+
+func (h *Handler) ResendSMS(w http.ResponseWriter, r *http.Request) {
+	var input eskiz.ResendInput
+	if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
+		httputil.FieldError(w, http.StatusBadRequest, field, message)
+		return
+	}
+
+	purpose := r.URL.Query().Get("purpose")
+	if purpose == "" {
+		purpose = eskiz.PurposeLogin
+	}
+
+	resp, err := h.service.ResendSMS(r.Context(), input, purpose)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var input eskiz.ForgotInput
+	if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
+		httputil.FieldError(w, http.StatusBadRequest, field, message)
+		return
+	}
+
+	resp, err := h.service.ForgotPassword(r.Context(), input)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var input eskiz.ResetInput
+	if field, message, err := httputil.DecodeJSON(r, &input); err != nil {
+		httputil.FieldError(w, http.StatusBadRequest, field, message)
+		return
+	}
+
+	if err := h.service.ResetPassword(r.Context(), input); err != nil {
+		h.writeError(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, map[string]string{"message": "Parol muvaffaqiyatli yangilandi"})
 }
 
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
@@ -190,6 +275,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) writeError(w http.ResponseWriter, err error) {
+	if eskiz.WriteError(w, err) {
+		return
+	}
 	switch {
 	case errors.Is(err, ErrValidation):
 		var validationErr *ValidationError

@@ -17,6 +17,7 @@ import {
   UserRound,
   Wallet,
   X,
+  Layers3,
 } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { api } from '../shared/api'
@@ -27,6 +28,7 @@ import { TechnicalHelp } from '../shared/TechnicalHelp'
 import { playNotificationBeep } from '../shared/notifSound'
 
 const TITLES: Array<[string, string]> = [
+  ['/birga-xarid', 'Birga Xarid'],
   ['/vazifalar', 'Admin-kurator vazifalari'],
   ['/profile', 'Mening profilim'],
   ['/notifications', 'Bildirishnomalar'],
@@ -86,6 +88,7 @@ export function AppShell() {
     { to: '/products', label: 'Mahsulotlar', icon: Package, end: false },
     { to: '/earnings', label: 'Daromad', icon: Wallet, end: false },
     { to: '/komissiyalar', label: 'Komissiyalar', icon: Percent, end: false },
+    { to: '/birga-xarid', label: 'Birga Xarid', icon: Layers3, end: false },
     { to: '/notifications', label: 'Bildirishnomalar', icon: Bell, end: false },
   ]
 
@@ -295,7 +298,7 @@ export function AppShell() {
 
         <main className="mx-auto max-w-[1480px] p-5 sm:p-8">
           <motion.div
-            key={pathname}
+            key={pathname.replace(/(\/birga-xarid)\/.+$/, '$1')}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.28 }}

@@ -3,6 +3,8 @@ import { motion } from 'framer-motion'
 import { KeyRound, LoaderCircle, Save, ShieldCheck, UserRound } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
+import { PasswordInput } from '../../shared/PasswordInput'
+import { PhoneInput } from '../../shared/PhoneInput'
 import { useSnackbar } from '../../shared/Snackbar'
 import { useAuth } from '../auth/AuthContext'
 
@@ -75,7 +77,7 @@ export function ProfilePage() {
           <div className="grid gap-5 sm:grid-cols-2">
             <Field name="first_name" label="Ism" defaultValue={admin.first_name} invalid={errorField === 'first_name'} />
             <Field name="last_name" label="Familiya" defaultValue={admin.last_name} invalid={errorField === 'last_name'} />
-            <Field name="phone" label="Telefon raqami" defaultValue={admin.phone} type="tel" invalid={errorField === 'phone'} />
+            <PhoneInput defaultValue={admin.phone} invalid={errorField === 'phone'} />
             <Field name="username" label="Foydalanuvchi nomi" defaultValue={admin.username} invalid={errorField === 'username'} />
           </div>
 
@@ -87,7 +89,7 @@ export function ProfilePage() {
               <p className="text-xs text-slate-400">O‘zgartirmaslik uchun bo‘sh qoldiring</p>
             </div>
           </div>
-          <Field name="password" label="Yangi parol" type="password" placeholder="Kamida 6 ta belgi" optional invalid={errorField === 'password'} />
+          <PasswordInput label="Yangi parol" required={false} invalid={errorField === 'password'} />
 
           <div className="mt-8 flex justify-end">
             <motion.button

@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS group_buy_items;
+DROP TABLE IF EXISTS group_buys;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS subcategories;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS customers;

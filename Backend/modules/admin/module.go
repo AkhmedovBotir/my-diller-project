@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"diller-backend/internal/pkg/auth"
+	"diller-backend/modules/eskiz"
 )
 
 type Module struct {
@@ -16,9 +17,9 @@ type Module struct {
 	Service   *Service // boshqa modullar foydalanishi uchun public
 }
 
-func NewModule(pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration) *Module {
+func NewModule(pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration, sms *eskiz.Service) *Module {
 	repo := NewRepository(pool)
-	service := NewService(repo, jwtSecret, jwtTTL)
+	service := NewService(repo, jwtSecret, jwtTTL, sms)
 	handler := NewHandler(service)
 
 	return &Module{
@@ -32,6 +33,10 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 	r.Route("/admin", func(r chi.Router) {
 		// Ochiq endpoint
 		r.Post("/auth/login", m.handler.Login)
+		r.Post("/auth/login/verify", m.handler.VerifyLogin)
+		r.Post("/auth/sms/resend", m.handler.ResendSMS)
+		r.Post("/auth/forgot", m.handler.ForgotPassword)
+		r.Post("/auth/reset", m.handler.ResetPassword)
 
 		// Token talab qilinadigan endpointlar (faqat admin token)
 		r.Group(func(r chi.Router) {

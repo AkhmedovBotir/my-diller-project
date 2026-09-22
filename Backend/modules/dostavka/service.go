@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -12,6 +13,7 @@ import (
 
 	"diller-backend/internal/pkg/auth"
 	"diller-backend/internal/pkg/kuratorassign"
+	"diller-backend/modules/eskiz"
 	"diller-backend/modules/region"
 )
 
@@ -20,18 +22,19 @@ type Service struct {
 	pool      *pgxpool.Pool
 	jwtSecret string
 	jwtTTL    time.Duration
+	sms       *eskiz.Service
 }
 
-func NewService(repo *Repository, pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration) *Service {
-	return &Service{repo: repo, pool: pool, jwtSecret: jwtSecret, jwtTTL: jwtTTL}
+func NewService(repo *Repository, pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration, sms *eskiz.Service) *Service {
+	return &Service{repo: repo, pool: pool, jwtSecret: jwtSecret, jwtTTL: jwtTTL, sms: sms}
 }
 
-func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResponse, error) {
+func (s *Service) Login(ctx context.Context, input LoginInput) (*eskiz.Challenge, error) {
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
 
-	item, err := s.repo.GetByUsername(ctx, input.Username)
+	item, err := s.findAccount(ctx, input.Username)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil, ErrInvalidCredentials
@@ -41,6 +44,34 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResponse, 
 
 	if bcrypt.CompareHashAndPassword([]byte(item.PasswordHash), []byte(input.Password)) != nil {
 		return nil, ErrInvalidCredentials
+	}
+
+	return s.sms.Issue(ctx, eskiz.IssueInput{
+		Phone:       item.Phone,
+		Purpose:     eskiz.PurposeLogin,
+		SubjectType: auth.SubjectDostavka,
+		Payload:     eskiz.UserIDPayload(item.ID),
+	})
+}
+
+func (s *Service) VerifyLogin(ctx context.Context, input eskiz.VerifyInput) (*LoginResponse, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+
+	otp, err := s.sms.Verify(ctx, input.ChallengeID, input.Code, eskiz.PurposeLogin, auth.SubjectDostavka)
+	if err != nil {
+		return nil, err
+	}
+
+	userID, err := eskiz.ParseUserID(otp.Payload)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
 
 	token, err := auth.GenerateToken(
@@ -57,6 +88,76 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResponse, 
 	return &LoginResponse{Token: token, Dostavka: item}, nil
 }
 
+func (s *Service) ResendSMS(ctx context.Context, input eskiz.ResendInput, purpose string) (*eskiz.Challenge, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+	return s.sms.Resend(ctx, input.ChallengeID, purpose, auth.SubjectDostavka)
+}
+
+func (s *Service) ForgotPassword(ctx context.Context, input eskiz.ForgotInput) (*eskiz.Challenge, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+
+	item, err := s.findAccount(ctx, strings.TrimSpace(input.Username))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, validationError("username", "Hisob topilmadi")
+		}
+		return nil, err
+	}
+
+	return s.sms.Issue(ctx, eskiz.IssueInput{
+		Phone:       item.Phone,
+		Purpose:     eskiz.PurposeReset,
+		SubjectType: auth.SubjectDostavka,
+		Payload:     eskiz.UserIDPayload(item.ID),
+	})
+}
+
+func (s *Service) ResetPassword(ctx context.Context, input eskiz.ResetInput) error {
+	if err := input.Validate(); err != nil {
+		return err
+	}
+
+	otp, err := s.sms.Verify(ctx, input.ChallengeID, input.Code, eskiz.PurposeReset, auth.SubjectDostavka)
+	if err != nil {
+		return err
+	}
+
+	userID, err := eskiz.ParseUserID(otp.Payload)
+	if err != nil {
+		return err
+	}
+
+	hash, err := hashPassword(input.Password)
+	if err != nil {
+		return err
+	}
+	return s.repo.UpdatePassword(ctx, userID, hash)
+}
+
+func (s *Service) findAccount(ctx context.Context, login string) (*Dostavka, error) {
+	for _, candidate := range eskiz.LookupCandidates(login) {
+		item, err := s.repo.GetByUsername(ctx, candidate)
+		if err == nil {
+			return item, nil
+		}
+		if !errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+		item, err = s.repo.GetByPhone(ctx, candidate)
+		if err == nil {
+			return item, nil
+		}
+		if !errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+	}
+	return nil, ErrNotFound
+}
+
 func (s *Service) Create(ctx context.Context, input CreateInput) (*Dostavka, error) {
 	if err := input.Validate(); err != nil {
 		return nil, err
@@ -68,6 +169,21 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Dostavka, err
 	}
 
 	return s.repo.Create(ctx, input, hash)
+}
+
+func (s *Service) CourierArea(ctx context.Context, id int64) (regionName, cityName, mfyName string, err error) {
+	item, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return "", "", "", err
+	}
+	if item.MFYID != nil && *item.MFYID > 0 {
+		labels, err := region.NewRepository(s.pool).ResolveLabels(ctx, *item.MFYID)
+		if err != nil {
+			return "", "", "", err
+		}
+		return labels.RegionName, labels.DistrictName, labels.MFYName, nil
+	}
+	return "", strings.TrimSpace(item.City), strings.TrimSpace(item.MFY), nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id int64) (*Dostavka, error) {

@@ -9,9 +9,12 @@ import (
 	"diller-backend/internal/pkg/database"
 	"diller-backend/internal/pkg/httpserver"
 	"diller-backend/internal/pkg/upload"
+	"diller-backend/migrations_birga"
 	"diller-backend/modules/admin"
+	"diller-backend/modules/birgaxarid"
 	"diller-backend/modules/category"
 	"diller-backend/modules/dostavka"
+	"diller-backend/modules/eskiz"
 	"diller-backend/modules/ishlabchiqaruvchi"
 	"diller-backend/modules/kurator"
 	"diller-backend/modules/notification"
@@ -41,15 +44,29 @@ func Run(cfg *config.Config) error {
 		"baza", cfg.Database.Name,
 	)
 
+	if err := database.EnsureDatabase(ctx, cfg.BirgaDatabase.SystemDSN(), cfg.BirgaDatabase.Name); err != nil {
+		return fmt.Errorf("birga xarid bazasini tayyorlab bo'lmadi: %w", err)
+	}
+	if err := database.MigrateFS(cfg.BirgaDatabaseDSN(), migrationsbirga.FS); err != nil {
+		return fmt.Errorf("birga xarid migratsiyasi bajarilmadi: %w", err)
+	}
+	birgaPool, err := database.NewPool(ctx, cfg.BirgaDatabaseDSN())
+	if err != nil {
+		return fmt.Errorf("birga xarid bazasiga ulanib bo'lmadi: %w", err)
+	}
+	defer birgaPool.Close()
+	slog.Info("Birga Xarid bazasiga ulanildi", "baza", cfg.BirgaDatabase.Name)
+
 	storage, err := upload.New(cfg.Upload.Dir, cfg.Upload.PublicBaseURL)
 	if err != nil {
 		return fmt.Errorf("upload tizimini ishga tushirib bo'lmadi: %w", err)
 	}
 
-	adminModule := admin.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL())
-	xaridorModule := xaridor.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL())
-	dostavkaModule := dostavka.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL())
-	ishlabChiqaruvchiModule := ishlabchiqaruvchi.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL())
+	eskizModule := eskiz.NewModule(pool, cfg.Eskiz, cfg.JWT.Secret)
+	adminModule := admin.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL(), eskizModule.Service)
+	xaridorModule := xaridor.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL(), eskizModule.Service)
+	dostavkaModule := dostavka.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL(), eskizModule.Service)
+	ishlabChiqaruvchiModule := ishlabchiqaruvchi.NewModule(pool, cfg.JWT.Secret, cfg.JWTTTL(), eskizModule.Service)
 	categoryModule := category.NewModule(pool, cfg.JWT.Secret)
 	regionModule := region.NewModule(pool, cfg.JWT.Secret)
 	productModule := product.NewModule(pool, cfg.JWT.Secret, storage)
@@ -57,12 +74,13 @@ func Run(cfg *config.Config) error {
 	orderModule := order.NewModule(pool, cfg.JWT.Secret, storage, notificationModule.Service)
 	go orderModule.Service.StartDeadlineWatcher(ctx)
 	kuratorModule := kurator.NewModule(pool, cfg.JWT.Secret, notificationModule.Service)
+	birgaXaridModule := birgaxarid.NewModule(birgaPool, cfg.JWT.Secret, cfg.JWTTTL(), storage, eskizModule.Service, dostavkaModule.Service)
 
 	router := NewRouter(
 		cfg, storage,
 		adminModule, xaridorModule, dostavkaModule, ishlabChiqaruvchiModule, categoryModule, regionModule, productModule,
-		orderModule, notificationModule, kuratorModule,
+		orderModule, notificationModule, kuratorModule, birgaXaridModule,
 	)
 
-	return httpserver.Start(cfg.HTTPPort, router)
+	return httpserver.Start(cfg.HTTPPort, router, cfg.AppEnv)
 }

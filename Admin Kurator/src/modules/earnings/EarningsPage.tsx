@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
-import { formatPrice } from '../../shared/order'
+import { formatMoneyInput, formatPrice, parseMoneyInput } from '../../shared/order'
 import { useSnackbar } from '../../shared/Snackbar'
 import type { KuratorDaromadSummary, KuratorTolovSorovi, KuratorTolovStatus } from '../../shared/types'
 import { useAuth } from '../auth/AuthContext'
@@ -275,6 +275,7 @@ function WithdrawForm({
   const { showSnackbar } = useSnackbar()
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [amount, setAmount] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -282,15 +283,15 @@ function WithdrawForm({
     setSaving(true)
     setErrorField(undefined)
     const form = new FormData(formElement)
-    const amount = Number(form.get('amount'))
+    const parsedAmount = parseMoneyInput(amount)
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setErrorField('amount')
       showSnackbar('Summa musbat bo‘lishi kerak', 'error')
       setSaving(false)
       return
     }
-    if (amount > maxAmount) {
+    if (parsedAmount > maxAmount) {
       setErrorField('amount')
       showSnackbar('Mavjud balans yetarli emas', 'error')
       setSaving(false)
@@ -299,12 +300,13 @@ function WithdrawForm({
 
     try {
       const created = await api.createTolovSorov({
-        amount,
+        amount: parsedAmount,
         card_number: String(form.get('card_number') || '').replace(/\s+/g, ''),
         card_holder: String(form.get('card_holder') || '').trim(),
         note: String(form.get('note') || '').trim(),
       })
       formElement.reset()
+      setAmount('')
       showSnackbar('So‘rov yuborildi — admin tasdiqlashini kuting')
       onCreated(created)
     } catch (saveError) {
@@ -331,15 +333,19 @@ function WithdrawForm({
       </div>
 
       <div className="space-y-4">
-        <Field
-          name="amount"
-          label="Summa (so‘m)"
-          type="number"
-          min="1"
-          step="1"
-          max={String(maxAmount)}
-          invalid={errorField === 'amount'}
-        />
+        <label className="block">
+          <span className="mb-2 block text-xs font-bold text-slate-600">Summa (so‘m)</span>
+          <input
+            inputMode="numeric"
+            value={amount}
+            onChange={(e) => setAmount(formatMoneyInput(e.target.value))}
+            placeholder="1 000"
+            className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
+              errorField === 'amount' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
+            }`}
+            required
+          />
+        </label>
         <Field name="card_number" label="Karta raqami" placeholder="8600 1234 5678 9012" invalid={errorField === 'card_number'} />
         <Field name="card_holder" label="Karta egasi (F.I.Sh)" invalid={errorField === 'card_holder'} />
         <label className="block">

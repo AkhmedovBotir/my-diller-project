@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"strings"
@@ -40,10 +41,55 @@ func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// Migrate embed qilingan SQL migratsiyalarni ishga tushiradi.
-// pgx/v5 migrate drayveri `pgx5://` sxemasini kutadi (postgres:// emas).
+// EnsureDatabase postgres tizim bazasiga ulanib, kerakli DB yo'q bo'lsa yaratadi.
+func EnsureDatabase(ctx context.Context, adminDSN, dbName string) error {
+	pool, err := pgxpool.New(ctx, adminDSN)
+	if err != nil {
+		return fmt.Errorf("postgres ga ulanib bo'lmadi: %w", err)
+	}
+	defer pool.Close()
+
+	var exists bool
+	if err := pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)`, dbName).Scan(&exists); err != nil {
+		return fmt.Errorf("baza mavjudligini tekshirib bo'lmadi: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	// CREATE DATABASE parametrlashtirilmaydi — nomni qattiq tekshiramiz.
+	if !isSafeDBName(dbName) {
+		return fmt.Errorf("baza nomi noto'g'ri: %s", dbName)
+	}
+	_, err = pool.Exec(ctx, fmt.Sprintf(`CREATE DATABASE "%s"`, dbName))
+	if err != nil {
+		return fmt.Errorf("baza yaratib bo'lmadi: %w", err)
+	}
+	return nil
+}
+
+func isSafeDBName(name string) bool {
+	if name == "" || len(name) > 63 {
+		return false
+	}
+	for i, r := range name {
+		ok := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_'
+		if !ok || (i == 0 && r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+// Migrate asosiy (diller) bazasi migratsiyalarini ishga tushiradi.
 func Migrate(dsn string) error {
-	src, err := iofs.New(migrations.FS, ".")
+	return MigrateFS(dsn, migrations.FS)
+}
+
+// MigrateFS berilgan embed SQL migratsiyalarni ishga tushiradi.
+// pgx/v5 migrate drayveri `pgx5://` sxemasini kutadi (postgres:// emas).
+func MigrateFS(dsn string, fs embed.FS) error {
+	src, err := iofs.New(fs, ".")
 	if err != nil {
 		return fmt.Errorf("migratsiyalarni yuklab bo'lmadi: %w", err)
 	}

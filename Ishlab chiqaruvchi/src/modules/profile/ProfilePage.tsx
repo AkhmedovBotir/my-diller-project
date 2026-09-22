@@ -13,6 +13,8 @@ import {
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
 import { LocationPicker } from '../../shared/LocationPicker'
+import { PhoneInput } from '../../shared/PhoneInput'
+import { PasswordInput } from '../../shared/PasswordInput'
 import { RegionCascade } from '../../shared/RegionCascade'
 import { isProfileComplete } from '../../shared/profileComplete'
 import { useSnackbar } from '../../shared/Snackbar'
@@ -168,7 +170,7 @@ export function ProfilePage() {
             <Field name="stir" label="STIR (INN)" defaultValue={user.stir} invalid={errorField === 'stir'} />
             <Field name="first_name" label="Ism" defaultValue={user.first_name} invalid={errorField === 'first_name'} />
             <Field name="last_name" label="Familiya" defaultValue={user.last_name} invalid={errorField === 'last_name'} />
-            <Field name="phone" label="Telefon raqami" defaultValue={user.phone} type="tel" invalid={errorField === 'phone'} />
+            <PhoneInput defaultValue={user.phone} invalid={errorField === 'phone'} />
             <Field name="username" label="Foydalanuvchi nomi" defaultValue={user.username} invalid={errorField === 'username'} />
             <div className="sm:col-span-2">
               <RegionCascade
@@ -287,7 +289,7 @@ export function ProfilePage() {
               <p className="text-xs text-slate-400">O‘zgartirmaslik uchun bo‘sh qoldiring</p>
             </div>
           </div>
-          <Field name="password" label="Yangi parol" type="password" placeholder="Kamida 6 ta belgi" optional invalid={errorField === 'password'} />
+          <PasswordInput label="Yangi parol" required={false} invalid={errorField === 'password'} />
 
           <div className="mt-8 flex justify-end">
             <motion.button

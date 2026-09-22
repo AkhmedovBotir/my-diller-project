@@ -1,0 +1,3 @@
+ALTER TABLE customers DROP COLUMN IF EXISTS birth_date;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS cart_items;

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, LoaderCircle, Minus, Package, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, getErrorMessage, isXaridorProfileComplete } from '../../shared/api'
+import { api, getErrorMessage } from '../../shared/api'
+import { isProfileComplete } from '../../shared/profileComplete'
 import { formatPrice, paymentTermFull } from '../../shared/format'
 import { useSnackbar } from '../../shared/Snackbar'
 import { useAuth } from '../auth/AuthContext'
@@ -47,8 +48,8 @@ export function CartPage() {
       return
     }
 
-    if (!isXaridorProfileComplete(user)) {
-      showSnackbar('Buyurtma berishdan oldin profilingizni (do‘kon nomi, STIR, bank, manzil, joylashuv) to‘liq to‘ldiring', 'error')
+    if (!isProfileComplete(user)) {
+      showSnackbar('Buyurtma berishdan oldin profilni 100% to‘ldiring', 'error')
       navigate('/profile')
       return
     }

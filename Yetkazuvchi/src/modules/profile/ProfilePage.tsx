@@ -1,8 +1,19 @@
 import { useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
-import { KeyRound, LoaderCircle, Save, Truck, UserRound } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  KeyRound,
+  LoaderCircle,
+  Save,
+  Truck,
+  UserRound,
+} from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
+import { PasswordInput } from '../../shared/PasswordInput'
+import { PhoneInput } from '../../shared/PhoneInput'
+import { isProfileComplete } from '../../shared/profileComplete'
 import { RegionCascade } from '../../shared/RegionCascade'
 import { useSnackbar } from '../../shared/Snackbar'
 import { useAuth } from '../auth/AuthContext'
@@ -16,11 +27,21 @@ export function ProfilePage() {
 
   if (!user) return null
 
+  const complete = isProfileComplete(user)
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formElement = event.currentTarget
     setSaving(true)
     setErrorField(undefined)
+
+    if (!mfyId) {
+      showSnackbar('Viloyat, tuman va MFY tanlanishi shart', 'error')
+      setErrorField('mfy_id')
+      setSaving(false)
+      return
+    }
+
     const form = new FormData(formElement)
     try {
       const password = String(form.get('password') ?? '').trim()
@@ -36,7 +57,11 @@ export function ProfilePage() {
       const refreshed = await api.profile()
       setUser(refreshed)
       setMfyId(refreshed.mfy_id ?? null)
-      showSnackbar('Profil muvaffaqiyatli yangilandi')
+      showSnackbar(
+        isProfileComplete(refreshed)
+          ? 'Profil muvaffaqiyatli yangilandi'
+          : 'Profil saqlandi, lekin hudud hali to‘liq emas',
+      )
       const passwordInput = formElement.elements.namedItem('password')
       if (passwordInput instanceof HTMLInputElement) passwordInput.value = ''
     } catch (updateError) {
@@ -55,9 +80,22 @@ export function ProfilePage() {
         </div>
         <h2 className="mt-5 text-xl font-bold tracking-tight">{user.first_name} {user.last_name}</h2>
         <p className="mt-1 text-sm text-slate-400">@{user.username}</p>
-        <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#eff8f3] px-3 py-1.5 text-xs font-bold text-[#397461]">
-          <Truck size={14} />
-          Dostavka
+        <div className="mt-5 flex flex-wrap gap-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#eff8f3] px-3 py-1.5 text-xs font-bold text-[#397461]">
+            <Truck size={14} />
+            Dostavka
+          </div>
+          {complete ? (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
+              <CheckCircle2 size={14} />
+              Hudud to‘liq
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">
+              <AlertTriangle size={14} />
+              Hudud tanlanmagan
+            </div>
+          )}
         </div>
         <div className="mt-7 space-y-4 border-t border-slate-100 pt-6">
           <ProfileMeta label="Kompaniya" value={user.company_name} />
@@ -84,6 +122,12 @@ export function ProfilePage() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 sm:p-8">
+          {!complete ? (
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-sm font-semibold text-amber-800">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+              Viloyat, tuman va MFY majburiy. Tanlamasangiz boshqa sahifalarda xato ko‘rinadi.
+            </div>
+          ) : null}
           <div className="mb-6 flex items-center gap-3">
             <div className="grid size-9 place-items-center rounded-xl bg-[#eff8f3] text-[#397461]"><UserRound size={18} /></div>
             <p className="text-sm font-bold text-slate-700">Asosiy ma’lumotlar</p>
@@ -92,13 +136,13 @@ export function ProfilePage() {
             <Field name="company_name" label="Kompaniya nomi" defaultValue={user.company_name} invalid={errorField === 'company_name'} className="sm:col-span-2" />
             <Field name="first_name" label="Ism" defaultValue={user.first_name} invalid={errorField === 'first_name'} />
             <Field name="last_name" label="Familiya" defaultValue={user.last_name} invalid={errorField === 'last_name'} />
-            <Field name="phone" label="Telefon raqami" defaultValue={user.phone} type="tel" invalid={errorField === 'phone'} />
+            <PhoneInput defaultValue={user.phone} invalid={errorField === 'phone'} />
             <Field name="username" label="Foydalanuvchi nomi" defaultValue={user.username} invalid={errorField === 'username'} />
             <div className="sm:col-span-2">
               <RegionCascade
                 value={mfyId}
                 onChange={setMfyId}
-                required={false}
+                required
                 invalid={errorField === 'mfy_id'}
               />
             </div>
@@ -112,7 +156,7 @@ export function ProfilePage() {
               <p className="text-xs text-slate-400">O‘zgartirmaslik uchun bo‘sh qoldiring</p>
             </div>
           </div>
-          <Field name="password" label="Yangi parol" type="password" placeholder="Kamida 6 ta belgi" optional invalid={errorField === 'password'} />
+          <PasswordInput label="Yangi parol" required={false} invalid={errorField === 'password'} />
 
           <div className="mt-8 flex justify-end">
             <motion.button

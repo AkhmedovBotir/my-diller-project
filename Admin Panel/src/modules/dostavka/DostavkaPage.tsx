@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDateTime } from '../../shared/date'
+import { PasswordInput } from '../../shared/PasswordInput'
+import { PhoneInput } from '../../shared/PhoneInput'
 import { useSnackbar } from '../../shared/Snackbar'
 import type { Dostavka, DostavkaInput } from '../../shared/types'
 
@@ -365,22 +367,13 @@ function FormModal({
           />
           <Field name="first_name" label="Ism" defaultValue={item?.first_name} invalid={errorField === 'first_name'} />
           <Field name="last_name" label="Familiya" defaultValue={item?.last_name} invalid={errorField === 'last_name'} />
-          <Field
-            name="phone"
-            label="Telefon"
-            type="tel"
-            defaultValue={item?.phone}
-            placeholder="+998 90 123 45 67"
-            invalid={errorField === 'phone'}
-          />
+          <PhoneInput label="Telefon" defaultValue={item?.phone} invalid={errorField === 'phone'} size="sm" />
           <Field name="username" label="Login" defaultValue={item?.username} invalid={errorField === 'username'} />
-          <Field
-            name="password"
+          <PasswordInput
             label={item ? 'Yangi parol (ixtiyoriy)' : 'Parol'}
-            type="password"
             required={!item}
-            placeholder="Kamida 6 ta belgi"
             invalid={errorField === 'password'}
+            size="sm"
             className="sm:col-span-2"
           />
         </div>

@@ -25,6 +25,12 @@ func NewModule(pool *pgxpool.Pool, jwtSecret string) *Module {
 }
 
 func (m *Module) RegisterRoutes(r chi.Router) {
+	// Public geo — User (Birga) auth uchun
+	r.Route("/public/regions", func(r chi.Router) {
+		r.Get("/", m.handler.List)
+		r.Get("/{id}", m.handler.GetByID)
+	})
+
 	r.Route("/regions", func(r chi.Router) {
 		r.Use(auth.Middleware(m.jwtSecret))
 		r.With(auth.RequireSubject(
@@ -32,12 +38,14 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 			auth.SubjectIshlabchiqaruvchi,
 			auth.SubjectXaridor,
 			auth.SubjectDostavka,
+			auth.SubjectBirgaCustomer,
 		)).Get("/", m.handler.List)
 		r.With(auth.RequireSubject(
 			auth.SubjectAdmin,
 			auth.SubjectIshlabchiqaruvchi,
 			auth.SubjectXaridor,
 			auth.SubjectDostavka,
+			auth.SubjectBirgaCustomer,
 		)).Get("/{id}", m.handler.GetByID)
 	})
 

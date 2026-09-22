@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './app/AppShell'
 import { useAuth } from './modules/auth/AuthContext'
 import { LoginPage } from './modules/auth/LoginPage'
+import { ForgotPasswordPage } from './modules/auth/ForgotPasswordPage'
 import { DashboardPage } from './modules/dashboard/DashboardPage'
 import { DocumentsPage } from './modules/documents/DocumentsPage'
 import { EarningsPage } from './modules/earnings/EarningsPage'
@@ -13,6 +14,7 @@ import { OrdersPage } from './modules/orders/OrdersPage'
 import { ProductsPage } from './modules/products/ProductsPage'
 import { ProfilePage } from './modules/profile/ProfilePage'
 import { VazifalarPage } from './modules/vazifalar/VazifalarPage'
+import { BirgaXaridPage, BirgaXaridIndexRedirect, BirgaCategoriesPage, BirgaProductsPage, BirgaCollectionsPage, BirgaOrdersPage, BirgaCustomersPage } from './modules/birgaXarid/BirgaXaridPage'
 
 function ProtectedArea() {
   const { user, loading } = useAuth()
@@ -61,6 +63,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot" element={<ForgotPasswordPage />} />
 
       <Route path="/" element={<ProtectedArea />}>
         <Route index element={<DashboardPage />} />
@@ -74,6 +77,14 @@ export default function App() {
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="vazifalar" element={<VazifalarPage />} />
+        <Route path="birga-xarid" element={<BirgaXaridPage />}>
+          <Route index element={<BirgaXaridIndexRedirect />} />
+          <Route path="kategoriyalar" element={<BirgaCategoriesPage />} />
+          <Route path="mahsulotlar" element={<BirgaProductsPage />} />
+          <Route path="yigimlar" element={<BirgaCollectionsPage />} />
+          <Route path="buyurtmalar" element={<BirgaOrdersPage />} />
+          <Route path="mijozlar" element={<BirgaCustomersPage />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />

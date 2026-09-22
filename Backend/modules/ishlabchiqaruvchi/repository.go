@@ -98,6 +98,18 @@ func (r *Repository) GetByPhone(ctx context.Context, phone string) (*Ishlabchiqa
 	return item, nil
 }
 
+func (r *Repository) UpdatePassword(ctx context.Context, id int64, passwordHash string) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE ishlabchiqaruvchilar SET password_hash = $1, updated_at = now() WHERE id = $2`, passwordHash, id)
+	if err != nil {
+		return fmt.Errorf("parolni yangilab bo'lmadi: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *Repository) List(ctx context.Context, limit, offset int) ([]Ishlabchiqaruvchi, error) {
 	query := fmt.Sprintf(`SELECT %s FROM ishlabchiqaruvchilar ORDER BY id LIMIT $1 OFFSET $2`, columns)
 

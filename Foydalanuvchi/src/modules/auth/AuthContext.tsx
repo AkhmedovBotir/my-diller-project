@@ -8,13 +8,23 @@ import {
   type ReactNode,
 } from 'react'
 import { api, tokenStorage } from '../../shared/api'
-import type { RegisterInput, XaridorProfileResponse } from '../../shared/types'
+import { isProfileComplete } from '../../shared/profileComplete'
+import type { RegisterInput, SmsChallenge, XaridorProfileResponse } from '../../shared/types'
+
+function withProfileFlag(profile: XaridorProfileResponse): XaridorProfileResponse {
+  return {
+    ...profile,
+    profile_complete: isProfileComplete(profile),
+  }
+}
 
 interface AuthContextValue {
   user: XaridorProfileResponse | null
   loading: boolean
-  login: (username: string, password: string) => Promise<XaridorProfileResponse>
-  register: (input: RegisterInput) => Promise<XaridorProfileResponse>
+  startLogin: (username: string, password: string) => Promise<SmsChallenge>
+  completeLogin: (challengeId: string, code: string) => Promise<XaridorProfileResponse>
+  startRegister: (input: RegisterInput) => Promise<SmsChallenge>
+  completeRegister: (challengeId: string, code: string) => Promise<XaridorProfileResponse>
   logout: () => void
   setUser: (user: XaridorProfileResponse) => void
 }
@@ -29,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!tokenStorage.get()) return
 
     api.profile()
-      .then(setUser)
+      .then((profile) => setUser(withProfileFlag(profile)))
       .catch(() => tokenStorage.remove())
       .finally(() => setLoading(false))
   }, [])
@@ -40,18 +50,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized)
   }, [])
 
-  const login = useCallback(async (username: string, password: string) => {
-    const result = await api.login(username, password)
+  const startLogin = useCallback(async (username: string, password: string) => {
+    return api.login(username, password)
+  }, [])
+
+  const completeLogin = useCallback(async (challengeId: string, code: string) => {
+    const result = await api.verifyLogin(challengeId, code)
     tokenStorage.set(result.token)
-    const profile = await api.profile()
+    const profile = withProfileFlag(await api.profile())
     setUser(profile)
     return profile
   }, [])
 
-  const register = useCallback(async (input: RegisterInput) => {
-    const result = await api.register(input)
+  const startRegister = useCallback(async (input: RegisterInput) => {
+    return api.register(input)
+  }, [])
+
+  const completeRegister = useCallback(async (challengeId: string, code: string) => {
+    const result = await api.verifyRegister(challengeId, code)
     tokenStorage.set(result.token)
-    const profile = await api.profile()
+    const profile = withProfileFlag(await api.profile())
     setUser(profile)
     return profile
   }, [])
@@ -61,9 +79,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const applyUser = useCallback((next: XaridorProfileResponse) => {
+    setUser(withProfileFlag(next))
+  }, [])
+
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, setUser }),
-    [user, loading, login, register, logout],
+    () => ({
+      user,
+      loading,
+      startLogin,
+      completeLogin,
+      startRegister,
+      completeRegister,
+      logout,
+      setUser: applyUser,
+    }),
+    [user, loading, startLogin, completeLogin, startRegister, completeRegister, logout, applyUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

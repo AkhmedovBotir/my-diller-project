@@ -3,6 +3,15 @@ import { AppShell } from './app/AppShell'
 import { AdminsPage } from './modules/admins/AdminsPage'
 import { useAuth } from './modules/auth/AuthContext'
 import { LoginPage } from './modules/auth/LoginPage'
+import { ForgotPasswordPage } from './modules/auth/ForgotPasswordPage'
+import { BirgaXaridPage, BirgaXaridIndexRedirect, BirgaCategoriesPage, BirgaProductsPage, BirgaCollectionsPage, BirgaOrdersPage, BirgaCustomersPage } from './modules/birgaXarid/BirgaXaridPage'
+import {
+  BirgaMoliyaPage,
+  BirgaMoliyaSettingsPage,
+  BirgaMoliyaStatsPage,
+  BirgaMoliyaCourierPage,
+  BirgaMoliyaKuratorPage,
+} from './modules/birgaXarid/BirgaMoliyaPage'
 import { CategoriesPage } from './modules/categories/CategoriesPage'
 import { CommissionsPage } from './modules/commissions/CommissionsPage'
 import { DashboardPage } from './modules/dashboard/DashboardPage'
@@ -68,6 +77,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot" element={<ForgotPasswordPage />} />
 
       <Route path="/general" element={<ProtectedArea role="general" />}>
         <Route index element={<DashboardPage />} />
@@ -84,6 +94,21 @@ export default function App() {
         <Route path="commissions" element={<CommissionsPage />} />
         <Route path="kurator-tolovlari" element={<KuratorTolovSorovlariPage />} />
         <Route path="debts" element={<DebtsPage />} />
+        <Route path="birga-xarid" element={<BirgaXaridPage />}>
+          <Route index element={<BirgaXaridIndexRedirect />} />
+          <Route path="kategoriyalar" element={<BirgaCategoriesPage />} />
+          <Route path="mahsulotlar" element={<BirgaProductsPage />} />
+          <Route path="yigimlar" element={<BirgaCollectionsPage />} />
+          <Route path="buyurtmalar" element={<BirgaOrdersPage />} />
+          <Route path="mijozlar" element={<BirgaCustomersPage />} />
+          <Route path="moliya" element={<BirgaMoliyaPage />}>
+            <Route index element={<Navigate to="sozlamalar" replace />} />
+            <Route path="sozlamalar" element={<BirgaMoliyaSettingsPage />} />
+            <Route path="statistika" element={<BirgaMoliyaStatsPage />} />
+            <Route path="kuryer" element={<BirgaMoliyaCourierPage />} />
+            <Route path="kurator" element={<BirgaMoliyaKuratorPage />} />
+          </Route>
+        </Route>
         <Route path="settings" element={<PlatformSettingsPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
@@ -100,6 +125,21 @@ export default function App() {
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="commissions" element={<CommissionsPage />} />
         <Route path="debts" element={<DebtsPage />} />
+        <Route path="birga-xarid" element={<BirgaXaridPage />}>
+          <Route index element={<BirgaXaridIndexRedirect />} />
+          <Route path="kategoriyalar" element={<BirgaCategoriesPage />} />
+          <Route path="mahsulotlar" element={<BirgaProductsPage />} />
+          <Route path="yigimlar" element={<BirgaCollectionsPage />} />
+          <Route path="buyurtmalar" element={<BirgaOrdersPage />} />
+          <Route path="mijozlar" element={<BirgaCustomersPage />} />
+          <Route path="moliya" element={<BirgaMoliyaPage />}>
+            <Route index element={<Navigate to="sozlamalar" replace />} />
+            <Route path="sozlamalar" element={<BirgaMoliyaSettingsPage />} />
+            <Route path="statistika" element={<BirgaMoliyaStatsPage />} />
+            <Route path="kuryer" element={<BirgaMoliyaCourierPage />} />
+            <Route path="kurator" element={<BirgaMoliyaKuratorPage />} />
+          </Route>
+        </Route>
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 
@@ -115,6 +155,14 @@ export default function App() {
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="commissions" element={<CommissionsPage />} />
         <Route path="debts" element={<DebtsPage />} />
+        <Route path="birga-xarid" element={<BirgaXaridPage />}>
+          <Route index element={<BirgaXaridIndexRedirect />} />
+          <Route path="kategoriyalar" element={<BirgaCategoriesPage />} />
+          <Route path="mahsulotlar" element={<BirgaProductsPage />} />
+          <Route path="yigimlar" element={<BirgaCollectionsPage />} />
+          <Route path="buyurtmalar" element={<BirgaOrdersPage />} />
+          <Route path="mijozlar" element={<BirgaCustomersPage />} />
+        </Route>
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 

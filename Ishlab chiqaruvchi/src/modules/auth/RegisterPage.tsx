@@ -1,18 +1,22 @@
 import { useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Building2, Eye, EyeOff, LoaderCircle } from 'lucide-react'
+import { ArrowRight, Building2, LoaderCircle } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { getErrorField, getErrorMessage } from '../../shared/api'
+import { getErrorField, getErrorMessage, api } from '../../shared/api'
+import { PasswordInput } from '../../shared/PasswordInput'
+import { PhoneInput } from '../../shared/PhoneInput'
+import { SmsVerifyForm } from '../../shared/SmsVerifyForm'
 import { useSnackbar } from '../../shared/Snackbar'
+import type { SmsChallenge } from '../../shared/types'
 import { useAuth } from './AuthContext'
 
 export function RegisterPage() {
-  const { user, register } = useAuth()
+  const { user, startRegister, completeRegister } = useAuth()
   const { showSnackbar } = useSnackbar()
   const navigate = useNavigate()
-  const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [challenge, setChallenge] = useState<SmsChallenge | null>(null)
 
   if (user) return <Navigate to="/" replace />
 
@@ -22,14 +26,14 @@ export function RegisterPage() {
     setSubmitting(true)
     const form = new FormData(event.currentTarget)
     try {
-      await register({
+      const next = await startRegister({
         company_name: String(form.get('company_name') ?? '').trim(),
         stir: String(form.get('stir') ?? '').trim(),
         phone: String(form.get('phone') ?? '').trim(),
         password: String(form.get('password') ?? ''),
       })
-      showSnackbar('Mahsulot qo‘shishdan oldin profilni 100% to‘ldiring')
-      navigate('/profile', { replace: true })
+      setChallenge(next)
+      showSnackbar(`SMS kod ${next.phone_masked} raqamiga yuborildi`)
     } catch (registerError) {
       showSnackbar(getErrorMessage(registerError), 'error')
       setErrorField(getErrorField(registerError))
@@ -109,36 +113,40 @@ export function RegisterPage() {
               </p>
             </div>
 
+            {challenge ? (
+              <SmsVerifyForm
+                phoneMasked={challenge.phone_masked}
+                submitting={submitting}
+                resendAfter={challenge.resend_after}
+                onSubmit={(code) => {
+                  void (async () => {
+                    setSubmitting(true)
+                    try {
+                      await completeRegister(challenge.challenge_id, code)
+                      showSnackbar('Mahsulot qo‘shishdan oldin profilni 100% to‘ldiring')
+                      navigate('/profile', { replace: true })
+                    } catch (registerError) {
+                      showSnackbar(getErrorMessage(registerError), 'error')
+                    } finally {
+                      setSubmitting(false)
+                    }
+                  })()
+                }}
+                onResend={async () => {
+                  const next = await api.resendSms(challenge.challenge_id, 'register')
+                  setChallenge(next)
+                  showSnackbar('SMS kod qayta yuborildi')
+                  return next.resend_after
+                }}
+                onBack={() => setChallenge(null)}
+              />
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <Field name="company_name" label="Korxona nomi" invalid={errorField === 'company_name'} />
               <Field name="stir" label="STIR (INN)" invalid={errorField === 'stir'} />
-              <Field name="phone" label="Telefon raqami" type="tel" invalid={errorField === 'phone'} />
+              <PhoneInput invalid={errorField === 'phone'} labelStyle="auth" />
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">Parol</span>
-                <div className="relative">
-                  <input
-                    name="password"
-                    required
-                    minLength={6}
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Kamida 6 ta belgi"
-                    className={`h-12 w-full rounded-xl border bg-white px-4 pr-12 text-sm outline-none transition placeholder:text-slate-400 focus:ring-4 ${
-                      errorField === 'password'
-                        ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-                        : 'border-slate-200 focus:border-[#397461] focus:ring-[#397461]/10'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((current) => !current)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-700"
-                    aria-label={showPassword ? 'Parolni yashirish' : 'Parolni ko‘rsatish'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </label>
+              <PasswordInput invalid={errorField === 'password'} labelStyle="auth" />
 
               <motion.button
                 whileHover={{ y: -2 }}
@@ -159,6 +167,7 @@ export function RegisterPage() {
                 )}
               </motion.button>
             </form>
+            )}
 
             <p className="mt-7 text-center text-sm text-slate-500">
               Hisobingiz bormi?{' '}

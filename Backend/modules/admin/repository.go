@@ -83,6 +83,28 @@ func (r *Repository) GetByUsername(ctx context.Context, username string) (*Admin
 	return a, nil
 }
 
+func (r *Repository) GetByPhone(ctx context.Context, phone string) (*Admin, error) {
+	query := fmt.Sprintf(`SELECT %s FROM admins WHERE phone = $1`, adminColumns)
+
+	a, err := scanAdmin(r.pool.QueryRow(ctx, query, phone))
+	if err != nil {
+		return nil, mapError(err, "adminni telefon bo'yicha olib bo'lmadi")
+	}
+	return a, nil
+}
+
+func (r *Repository) UpdatePassword(ctx context.Context, id int64, passwordHash string) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE admins SET password_hash = $1, updated_at = now() WHERE id = $2`, passwordHash, id)
+	if err != nil {
+		return fmt.Errorf("parolni yangilab bo'lmadi: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *Repository) List(ctx context.Context, adminType string, limit, offset int) ([]Admin, error) {
 	query := fmt.Sprintf(`SELECT %s FROM admins`, adminColumns)
 	var rows pgx.Rows

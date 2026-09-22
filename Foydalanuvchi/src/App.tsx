@@ -3,6 +3,7 @@ import { AppShell } from './app/AppShell'
 import { useAuth } from './modules/auth/AuthContext'
 import { LoginPage } from './modules/auth/LoginPage'
 import { RegisterPage } from './modules/auth/RegisterPage'
+import { ForgotPasswordPage } from './modules/auth/ForgotPasswordPage'
 import { CartPage } from './modules/cart/CartPage'
 import { CatalogPage } from './modules/catalog/CatalogPage'
 import { ProductDetailPage } from './modules/catalog/ProductDetailPage'
@@ -65,6 +66,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot" element={<ForgotPasswordPage />} />
 
       <Route path="/" element={<ProtectedArea />}>
         <Route index element={<DashboardPage />} />

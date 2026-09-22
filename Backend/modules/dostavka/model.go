@@ -171,6 +171,9 @@ func (i UpdateProfileInput) Validate() error {
 	if strings.TrimSpace(i.Username) == "" {
 		return validationError("username", "Foydalanuvchi nomi kiritilishi shart")
 	}
+	if i.MFYID == nil || *i.MFYID <= 0 {
+		return validationError("mfy_id", "Viloyat, tuman va MFY tanlanishi shart")
+	}
 	if i.Password != "" && len(i.Password) < 6 {
 		return validationError("password", "Parol kamida 6 ta belgidan iborat bo'lishi kerak")
 	}

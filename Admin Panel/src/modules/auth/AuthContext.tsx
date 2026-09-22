@@ -8,12 +8,13 @@ import {
   type ReactNode,
 } from 'react'
 import { api, tokenStorage } from '../../shared/api'
-import type { Admin } from '../../shared/types'
+import type { Admin, SmsChallenge } from '../../shared/types'
 
 interface AuthContextValue {
   admin: Admin | null
   loading: boolean
-  login: (username: string, password: string) => Promise<Admin>
+  startLogin: (username: string, password: string) => Promise<SmsChallenge>
+  completeLogin: (challengeId: string, code: string) => Promise<Admin>
   logout: () => void
   setAdmin: (admin: Admin) => void
 }
@@ -39,8 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized)
   }, [])
 
-  const login = useCallback(async (username: string, password: string) => {
-    const result = await api.login(username, password)
+  const startLogin = useCallback(async (username: string, password: string) => {
+    return api.login(username, password)
+  }, [])
+
+  const completeLogin = useCallback(async (challengeId: string, code: string) => {
+    const result = await api.verifyLogin(challengeId, code)
     tokenStorage.set(result.token)
     setAdmin(result.admin)
     return result.admin
@@ -52,8 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ admin, loading, login, logout, setAdmin }),
-    [admin, loading, login, logout],
+    () => ({ admin, loading, startLogin, completeLogin, logout, setAdmin }),
+    [admin, loading, startLogin, completeLogin, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

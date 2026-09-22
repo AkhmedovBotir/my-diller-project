@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  AlertTriangle,
   Bell,
   ChevronDown,
   LayoutDashboard,
@@ -8,6 +9,7 @@ import {
   Menu,
   Truck,
   UserRound,
+  UsersRound,
   X,
 } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -15,6 +17,7 @@ import { api } from '../shared/api'
 import { useAuth } from '../modules/auth/AuthContext'
 import { NotifSoundToggle } from '../shared/NotifSoundToggle'
 import { MyCurator } from '../shared/MyCurator'
+import { isProfileComplete } from '../shared/profileComplete'
 import { TechnicalHelp } from '../shared/TechnicalHelp'
 import { playNotificationBeep } from '../shared/notifSound'
 
@@ -52,14 +55,25 @@ export function AppShell() {
     ? 'Mening profilim'
     : pathname.endsWith('/notifications')
       ? 'Bildirishnomalar'
-      : pathname.startsWith('/deliveries')
-        ? 'Yetkazib berishlar'
-        : 'Boshqaruv paneli'
+      : pathname.startsWith('/birga-xarid')
+        ? 'Birga Xarid'
+        : pathname.startsWith('/deliveries')
+          ? 'Yetkazib berishlar'
+          : 'Boshqaruv paneli'
 
   const links = [
     { to: '/', label: 'Asosiy', icon: LayoutDashboard, end: true },
     { to: '/deliveries', label: 'Yetkazib berishlar', icon: Truck, end: false },
+    { to: '/birga-xarid', label: 'Birga Xarid', icon: UsersRound, end: false },
     { to: '/notifications', label: 'Bildirishnomalar', icon: Bell, end: false },
+    { to: '/profile', label: 'Profil', icon: UserRound, end: false },
+  ]
+
+  const bottomLinks = [
+    { to: '/', label: 'Asosiy', icon: LayoutDashboard, end: true },
+    { to: '/deliveries', label: 'Yetkazish', icon: Truck, end: false },
+    { to: '/birga-xarid', label: 'Birga', icon: UsersRound, end: false },
+    { to: '/profile', label: 'Profil', icon: UserRound, end: false },
   ]
 
   const sidebar = (
@@ -257,7 +271,16 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1480px] p-5 sm:p-8">
+        <main className="mx-auto max-w-[1480px] p-5 pb-28 sm:p-8 lg:pb-8">
+          {!isProfileComplete(user) ? (
+            <NavLink
+              to="/profile"
+              className="mb-5 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-sm font-semibold text-amber-800 transition hover:border-amber-300"
+            >
+              <AlertTriangle size={18} className="shrink-0" />
+              Viloyat, tuman va MFY tanlanmagan — profilni to‘ldiring
+            </NavLink>
+          ) : null}
           <motion.div
             key={pathname}
             initial={{ opacity: 0, y: 8 }}
@@ -268,6 +291,26 @@ export function AppShell() {
           </motion.div>
         </main>
       </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-[#f5f7f6]/95 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:hidden">
+        <div className="mx-auto grid max-w-lg grid-cols-4 gap-1 px-2 py-1.5">
+          {bottomLinks.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-semibold ${
+                  isActive ? 'bg-[#102d26] text-[#c9f560]' : 'text-slate-500'
+                }`
+              }
+            >
+              <Icon size={18} />
+              {label}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   )
 }

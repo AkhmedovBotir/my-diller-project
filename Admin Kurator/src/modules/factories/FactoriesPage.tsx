@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { formatDate } from '../../shared/date'
+import { PasswordInput } from '../../shared/PasswordInput'
+import { PhoneInput } from '../../shared/PhoneInput'
 import { useSnackbar } from '../../shared/Snackbar'
 import type { Ishlabchiqaruvchi, IshlabchiqaruvchiCreateInput } from '../../shared/types'
 import { useAuth } from '../auth/AuthContext'
@@ -263,9 +265,9 @@ function CreateFactoryModal({ onClose, onCreated }: { onClose: () => void; onCre
             />
             <FormField name="first_name" label="Ism" invalid={errorField === 'first_name'} />
             <FormField name="last_name" label="Familiya" invalid={errorField === 'last_name'} />
-            <FormField name="phone" label="Telefon" type="tel" placeholder="+998 90 123 45 67" invalid={errorField === 'phone'} />
+            <PhoneInput label="Telefon" invalid={errorField === 'phone'} size="sm" />
             <FormField name="username" label="Login" invalid={errorField === 'username'} />
-            <FormField name="password" label="Parol" type="password" placeholder="Kamida 6 ta belgi" invalid={errorField === 'password'} />
+            <PasswordInput label="Parol" invalid={errorField === 'password'} size="sm" />
             <FormField name="stir" label="STIR" required={false} invalid={errorField === 'stir'} />
             <FormField name="bank_name" label="Bank nomi" required={false} invalid={errorField === 'bank_name'} />
             <FormField name="mfo" label="MFO" required={false} invalid={errorField === 'mfo'} />

@@ -6,6 +6,7 @@ import {
   ChevronDown,
   FolderTree,
   LayoutDashboard,
+  Layers3,
   LogOut,
   MapPinned,
   Menu,
@@ -67,11 +68,13 @@ export function AppShell() {
                     ? 'Kurator to‘lov so‘rovlari'
                     : pathname.endsWith('/debts')
                       ? 'Qarzlar'
-                      : pathname.endsWith('/settings')
-                        ? 'Platforma sozlamalari'
-                        : pathname.endsWith('/profile')
-                          ? 'Mening profilim'
-                          : 'Boshqaruv paneli'
+                      : pathname.includes('/birga-xarid')
+                        ? 'Birga Xarid'
+                        : pathname.endsWith('/settings')
+                          ? 'Platforma sozlamalari'
+                          : pathname.endsWith('/profile')
+                            ? 'Mening profilim'
+                            : 'Boshqaruv paneli'
 
   const links = [
     { to: basePath, label: 'Asosiy', icon: LayoutDashboard, end: true },
@@ -94,8 +97,11 @@ export function AppShell() {
     ...(admin.type === 'general'
       ? [{ to: `${basePath}/kurator-tolovlari`, label: 'Kurator to‘lovlari', icon: Banknote, end: false }]
       : []),
-    ...(admin.type === 'general'
+    ...(admin.type === 'general' || admin.type === 'admin' || admin.type === 'kurator'
       ? [{ to: `${basePath}/debts`, label: 'Qarzlar', icon: Wallet, end: false }]
+      : []),
+    ...(admin.type === 'general' || admin.type === 'admin' || admin.type === 'kurator'
+      ? [{ to: `${basePath}/birga-xarid`, label: 'Birga Xarid', icon: Layers3, end: false }]
       : []),
     ...(admin.type === 'general'
       ? [{ to: `${basePath}/settings`, label: 'Platforma sozlamalari', icon: Settings, end: false }]
@@ -284,7 +290,7 @@ export function AppShell() {
 
         <main className="mx-auto max-w-[1480px] p-5 sm:p-8">
           <motion.div
-            key={pathname}
+            key={pathname.replace(/(\/birga-xarid)\/.+$/, '$1')}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.28 }}

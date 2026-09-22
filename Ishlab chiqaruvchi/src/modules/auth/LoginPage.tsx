@@ -2,13 +2,15 @@ import { useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, Building2, Eye, EyeOff, LoaderCircle, LockKeyhole } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { getErrorField, getErrorMessage } from '../../shared/api'
+import { api, getErrorField, getErrorMessage } from '../../shared/api'
 import { isProfileComplete } from '../../shared/profileComplete'
+import { SmsVerifyForm } from '../../shared/SmsVerifyForm'
 import { useSnackbar } from '../../shared/Snackbar'
+import type { SmsChallenge } from '../../shared/types'
 import { useAuth } from './AuthContext'
 
 export function LoginPage() {
-  const { user, login } = useAuth()
+  const { user, startLogin, completeLogin } = useAuth()
   const { showSnackbar } = useSnackbar()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
@@ -16,6 +18,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [challenge, setChallenge] = useState<SmsChallenge | null>(null)
 
   if (user) return <Navigate to="/" replace />
 
@@ -24,7 +27,22 @@ export function LoginPage() {
     setErrorField(undefined)
     setSubmitting(true)
     try {
-      const loggedUser = await login(username.trim(), password)
+      const next = await startLogin(username.trim(), password)
+      setChallenge(next)
+      showSnackbar(`SMS kod ${next.phone_masked} raqamiga yuborildi`)
+    } catch (loginError) {
+      showSnackbar(getErrorMessage(loginError), 'error')
+      setErrorField(getErrorField(loginError))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleVerify(code: string) {
+    if (!challenge) return
+    setSubmitting(true)
+    try {
+      const loggedUser = await completeLogin(challenge.challenge_id, code)
       if (!isProfileComplete(loggedUser)) {
         showSnackbar('Mahsulot qo‘shishdan oldin profilni 100% to‘ldiring', 'error')
         navigate('/profile', { replace: true })
@@ -34,7 +52,6 @@ export function LoginPage() {
       }
     } catch (loginError) {
       showSnackbar(getErrorMessage(loginError), 'error')
-      setErrorField(getErrorField(loginError))
     } finally {
       setSubmitting(false)
     }
@@ -107,10 +124,27 @@ export function LoginPage() {
                 Xush kelibsiz
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-500">
-                Kabinetga kirish uchun hisob ma’lumotlaringizni kiriting.
+                {challenge
+                  ? 'Telefoningizga yuborilgan 6 xonali kodni kiriting.'
+                  : 'Kabinetga kirish uchun hisob ma’lumotlaringizni kiriting.'}
               </p>
             </div>
 
+            {challenge ? (
+              <SmsVerifyForm
+                phoneMasked={challenge.phone_masked}
+                submitting={submitting}
+                resendAfter={challenge.resend_after}
+                onSubmit={(code) => void handleVerify(code)}
+                onResend={async () => {
+                  const next = await api.resendSms(challenge.challenge_id, 'login')
+                  setChallenge(next)
+                  showSnackbar('SMS kod qayta yuborildi')
+                  return next.resend_after
+                }}
+                onBack={() => setChallenge(null)}
+              />
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-slate-700">Login</span>
@@ -156,6 +190,12 @@ export function LoginPage() {
                 </div>
               </label>
 
+              <p className="text-right text-sm">
+                <Link to="/forgot" className="font-semibold text-[#173c32] hover:underline">
+                  Parolni unutdingizmi?
+                </Link>
+              </p>
+
               <motion.button
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.98 }}
@@ -175,6 +215,7 @@ export function LoginPage() {
                 )}
               </motion.button>
             </form>
+            )}
 
             <p className="mt-7 text-center text-sm text-slate-500">
               Hisobingiz yo‘qmi?{' '}

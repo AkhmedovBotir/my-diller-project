@@ -8,10 +8,12 @@ import (
 
 	"diller-backend/docs"
 	"diller-backend/internal/config"
+	"diller-backend/internal/pkg/console"
 	"diller-backend/internal/pkg/cors"
 	"diller-backend/internal/pkg/httputil"
 	"diller-backend/internal/pkg/upload"
 	"diller-backend/modules/admin"
+	"diller-backend/modules/birgaxarid"
 	"diller-backend/modules/category"
 	"diller-backend/modules/dostavka"
 	"diller-backend/modules/ishlabchiqaruvchi"
@@ -36,12 +38,13 @@ func NewRouter(
 	orderModule *order.Module,
 	notificationModule *notification.Module,
 	kuratorModule *kurator.Module,
+	birgaXaridModule *birgaxarid.Module,
 ) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	r.Use(console.AccessLog)
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Middleware(cfg.CORS))
 
@@ -63,6 +66,7 @@ func NewRouter(
 		orderModule.RegisterRoutes(api)
 		notificationModule.RegisterRoutes(api)
 		kuratorModule.RegisterRoutes(api)
+		birgaXaridModule.RegisterRoutes(api)
 	})
 
 	return r

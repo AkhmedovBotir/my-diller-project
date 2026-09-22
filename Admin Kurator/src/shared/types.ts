@@ -40,6 +40,14 @@ export interface LoginResponse {
   admin: Admin
 }
 
+export interface SmsChallenge {
+  sms_required: true
+  challenge_id: string
+  phone_masked: string
+  expires_in: number
+  resend_after: number
+}
+
 export interface ApiError {
   code:
     | 'NOTOGRI_SOROV'
@@ -47,6 +55,8 @@ export interface ApiError {
     | 'RUXSAT_YOQ'
     | 'TOPILMADI'
     | 'TAKRORIY_MALUMOT'
+    | 'JUDA_KOP_SOROV'
+    | 'TASHQI_XIZMAT_XATOSI'
     | 'ICHKI_SERVER_XATOSI'
   message: string
   field?: string
@@ -290,4 +300,164 @@ export interface Notification {
   link: string
   is_read: boolean
   created_at: string
+}
+
+// --- Birga Xarid (alohida DB moduli) ---
+
+export interface BirgaCategory {
+  id: number
+  name: string
+  description: string
+  icon: string
+  created_at: string
+  updated_at: string
+}
+
+export interface BirgaCategoryInput {
+  name: string
+  description?: string
+  icon: string
+}
+
+export interface BirgaSubcategory {
+  id: number
+  category_id: number
+  name: string
+  description: string
+  created_at: string
+  updated_at: string
+}
+
+export interface BirgaSubcategoryInput {
+  category_id: number
+  name: string
+  description?: string
+}
+
+export interface BirgaProduct {
+  id: number
+  category_id: number
+  subcategory_id?: number | null
+  name: string
+  description: string
+  unit: string
+  price: number
+  stock: number
+  photo_url: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface BirgaProductInput {
+  category_id: number
+  subcategory_id?: number | null
+  name: string
+  description?: string
+  unit?: string
+  price: number
+  stock: number
+  photo?: File | null
+  is_active?: boolean
+}
+
+export type BirgaGroupBuyKind = 'product' | 'combo'
+export type BirgaGroupBuyStatus = 'open' | 'closed' | 'in_fulfillment' | 'completed' | 'cancelled'
+
+export interface BirgaGroupBuyItem {
+  id: number
+  group_buy_id: number
+  product_id: number
+  quantity: number
+  product_name?: string
+  photo_url?: string
+}
+
+export interface BirgaGroupBuy {
+  id: number
+  kind: BirgaGroupBuyKind
+  title: string
+  description: string
+  product_id?: number | null
+  price: number
+  min_volume: number
+  current_volume: number
+  stock: number
+  photo_urls: string[]
+  status: BirgaGroupBuyStatus
+  items?: BirgaGroupBuyItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface BirgaGroupBuyInput {
+  kind: BirgaGroupBuyKind
+  title: string
+  description?: string
+  product_id?: number | null
+  price: number
+  min_volume: number
+  stock: number
+  photo_urls?: string[]
+  photos?: (File | null)[]
+  items?: { product_id: number; quantity: number }[]
+}
+
+export interface BirgaCustomer {
+  id: number
+  phone: string
+  first_name: string
+  last_name: string
+  region_name: string
+  city_name: string
+  mfy_name: string
+  address: string
+  lat?: number | null
+  lng?: number | null
+  profile_completed: boolean
+  is_blocked: boolean
+  blocked_reason: string
+  created_at: string
+  updated_at: string
+}
+
+export type BirgaOrderStatus =
+  | 'collecting'
+  | 'awaiting_courier'
+  | 'with_courier'
+  | 'issued'
+  | 'cancelled'
+
+export interface BirgaOrder {
+  id: number
+  customer_id: number
+  group_buy_id: number
+  quantity: number
+  unit_price: number
+  total_amount: number
+  status: BirgaOrderStatus | string
+  pickup_code?: string
+  courier_id?: number | null
+  title_snapshot: string
+  photo_snapshot: string
+  customer_phone?: string
+  customer_name?: string
+  region_name?: string
+  city_name?: string
+  mfy_name?: string
+  address?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface BirgaCustomerInput {
+  phone: string
+  first_name?: string
+  last_name?: string
+  region_name?: string
+  city_name?: string
+  mfy_name?: string
+  address?: string
+  lat?: number | null
+  lng?: number | null
 }

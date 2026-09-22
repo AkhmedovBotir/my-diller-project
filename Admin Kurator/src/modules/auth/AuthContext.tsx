@@ -8,14 +8,15 @@ import {
   type ReactNode,
 } from 'react'
 import { ApiRequestError, api, tokenStorage } from '../../shared/api'
-import type { Admin } from '../../shared/types'
+import type { Admin, SmsChallenge } from '../../shared/types'
 
 const ALLOWED_TYPES: Admin['type'][] = ['kurator', 'general']
 
 interface AuthContextValue {
   user: Admin | null
   loading: boolean
-  login: (username: string, password: string) => Promise<Admin>
+  startLogin: (username: string, password: string) => Promise<SmsChallenge>
+  completeLogin: (challengeId: string, code: string) => Promise<Admin>
   logout: () => void
   setUser: (user: Admin) => void
 }
@@ -48,8 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized)
   }, [])
 
-  const login = useCallback(async (username: string, password: string) => {
-    const result = await api.login(username, password)
+  const startLogin = useCallback(async (username: string, password: string) => {
+    return api.login(username, password)
+  }, [])
+
+  const completeLogin = useCallback(async (challengeId: string, code: string) => {
+    const result = await api.verifyLogin(challengeId, code)
     if (!ALLOWED_TYPES.includes(result.admin.type)) {
       throw new ApiRequestError(
         'Bu kabinet faqat kurator xodimlari uchun mo‘ljallangan',
@@ -68,8 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, logout, setUser }),
-    [user, loading, login, logout],
+    () => ({ user, loading, startLogin, completeLogin, logout, setUser }),
+    [user, loading, startLogin, completeLogin, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

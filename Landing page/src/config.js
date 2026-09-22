@@ -4,7 +4,7 @@ export const CABINETS = {
   zavod: 'https://zavod.mydiller.uz',
   yetkazish: 'https://yetkazish.mydiller.uz',
   kurator: 'https://kurator.mydiller.uz',
-  admin: 'https://admin.mydiller.uz',
+  birga: 'https://xarid.mydiller.uz',
 }
 
 /** Backend API manzili */

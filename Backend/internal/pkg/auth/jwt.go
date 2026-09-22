@@ -19,6 +19,7 @@ const (
 	SubjectIshlabchiqaruvchi = "ishlabchiqaruvchi"
 	SubjectXaridor           = "xaridor"
 	SubjectDostavka          = "dostavka"
+	SubjectBirgaCustomer     = "birga_customer"
 )
 
 type Claims struct {

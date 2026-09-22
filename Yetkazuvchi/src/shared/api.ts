@@ -1,7 +1,9 @@
 import type {
   ApiError,
+  BirgaOrder,
   DostavkaInput,
   LoginResponse,
+  SmsChallenge,
   Notification,
   Order,
   OrderStatus,
@@ -63,7 +65,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // The API may return an empty error body.
     }
-    if (response.status === 401 && path !== LOGIN_PATH) {
+    if (response.status === 401 && !path.includes('/auth/')) {
       tokenStorage.remove()
       window.dispatchEvent(new Event('auth:unauthorized'))
     }
@@ -76,9 +78,33 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   login: (username: string, password: string) =>
-    request<LoginResponse>(LOGIN_PATH, {
+    request<SmsChallenge>(LOGIN_PATH, {
       method: 'POST',
       body: JSON.stringify({ username, password }),
+    }),
+
+  verifyLogin: (challengeId: string, code: string) =>
+    request<LoginResponse>(`${LOGIN_PATH}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code }),
+    }),
+
+  resendSms: (challengeId: string, purpose: 'login' | 'register' | 'reset' = 'login') =>
+    request<SmsChallenge>(`/dostavka/auth/sms/resend?purpose=${purpose}`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId }),
+    }),
+
+  forgotPassword: (username: string) =>
+    request<SmsChallenge>('/dostavka/auth/forgot', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    }),
+
+  resetPassword: (challengeId: string, code: string, password: string) =>
+    request<{ message: string }>('/dostavka/auth/reset', {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code, password }),
     }),
 
   profile: () => request<ProfileResponse>('/dostavka/profile'),
@@ -115,6 +141,24 @@ export const api = {
 
   deliverOrder: (id: number) =>
     request<Order>(`/dostavka/buyurtmalar/${id}/deliver`, { method: 'POST' }),
+
+  birgaOrders: (params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 50))
+    query.set('offset', String(params?.offset ?? 0))
+    return request<BirgaOrder[]>(`/dostavka/birga-xarid/orders?${query.toString()}`)
+  },
+
+  birgaOrder: (id: number) => request<BirgaOrder>(`/dostavka/birga-xarid/orders/${id}`),
+
+  claimBirgaOrder: (id: number) =>
+    request<BirgaOrder>(`/dostavka/birga-xarid/orders/${id}/claim`, { method: 'POST' }),
+
+  deliverBirgaOrder: (id: number, code: string) =>
+    request<BirgaOrder>(`/dostavka/birga-xarid/orders/${id}/deliver`, {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
 
   notifications: (params?: { limit?: number; offset?: number }) => {
     const query = new URLSearchParams()

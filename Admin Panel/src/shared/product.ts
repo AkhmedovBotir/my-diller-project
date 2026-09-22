@@ -122,5 +122,8 @@ export function deltaToHtml(description: QuillDelta | string | null | undefined)
 }
 
 export function formatPrice(value: number) {
-  return new Intl.NumberFormat('uz-UZ').format(value) + ' so‘m'
+  const n = Math.round(Number(value) || 0)
+  const neg = n < 0
+  const digits = Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return (neg ? '-' : '') + digits + ' so‘m'
 }

@@ -8,12 +8,13 @@ import {
   type ReactNode,
 } from 'react'
 import { api, tokenStorage } from '../../shared/api'
-import type { ProfileResponse } from '../../shared/types'
+import type { ProfileResponse, SmsChallenge } from '../../shared/types'
 
 interface AuthContextValue {
   user: ProfileResponse | null
   loading: boolean
-  login: (username: string, password: string) => Promise<ProfileResponse>
+  startLogin: (username: string, password: string) => Promise<SmsChallenge>
+  completeLogin: (challengeId: string, code: string) => Promise<ProfileResponse>
   logout: () => void
   setUser: (user: ProfileResponse) => void
 }
@@ -39,8 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized)
   }, [])
 
-  const login = useCallback(async (username: string, password: string) => {
-    const result = await api.login(username, password)
+  const startLogin = useCallback(async (username: string, password: string) => {
+    return api.login(username, password)
+  }, [])
+
+  const completeLogin = useCallback(async (challengeId: string, code: string) => {
+    const result = await api.verifyLogin(challengeId, code)
     tokenStorage.set(result.token)
     const profile = await api.profile()
     setUser(profile)
@@ -53,8 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, logout, setUser }),
-    [user, loading, login, logout],
+    () => ({ user, loading, startLogin, completeLogin, logout, setUser }),
+    [user, loading, startLogin, completeLogin, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -2,9 +2,12 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './app/AppShell'
 import { useAuth } from './modules/auth/AuthContext'
 import { LoginPage } from './modules/auth/LoginPage'
+import { ForgotPasswordPage } from './modules/auth/ForgotPasswordPage'
 import { DashboardPage } from './modules/dashboard/DashboardPage'
 import { DeliveriesPage } from './modules/deliveries/DeliveriesPage'
 import { DeliveryDetailPage } from './modules/deliveries/DeliveryDetailPage'
+import { BirgaOrdersPage } from './modules/birga/BirgaOrdersPage'
+import { BirgaOrderDetailPage } from './modules/birga/BirgaOrderDetailPage'
 import { NotificationsPage } from './modules/notifications/NotificationsPage'
 import { ProfilePage } from './modules/profile/ProfilePage'
 
@@ -55,11 +58,14 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot" element={<ForgotPasswordPage />} />
 
       <Route path="/" element={<ProtectedArea />}>
         <Route index element={<DashboardPage />} />
         <Route path="deliveries" element={<DeliveriesPage />} />
         <Route path="deliveries/:id" element={<DeliveryDetailPage />} />
+        <Route path="birga-xarid" element={<BirgaOrdersPage />} />
+        <Route path="birga-xarid/:id" element={<BirgaOrderDetailPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>

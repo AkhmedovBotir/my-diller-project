@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { api, tokenStorage } from '../../shared/api'
 import { isProfileComplete } from '../../shared/profileComplete'
-import type { IshlabchiqaruvchiProfile, RegisterInput } from '../../shared/types'
+import type { IshlabchiqaruvchiProfile, RegisterInput, SmsChallenge } from '../../shared/types'
 
 function withProfileFlag(profile: IshlabchiqaruvchiProfile): IshlabchiqaruvchiProfile {
   return {
@@ -21,8 +21,10 @@ function withProfileFlag(profile: IshlabchiqaruvchiProfile): IshlabchiqaruvchiPr
 interface AuthContextValue {
   user: IshlabchiqaruvchiProfile | null
   loading: boolean
-  login: (username: string, password: string) => Promise<IshlabchiqaruvchiProfile>
-  register: (input: RegisterInput) => Promise<IshlabchiqaruvchiProfile>
+  startLogin: (username: string, password: string) => Promise<SmsChallenge>
+  completeLogin: (challengeId: string, code: string) => Promise<IshlabchiqaruvchiProfile>
+  startRegister: (input: RegisterInput) => Promise<SmsChallenge>
+  completeRegister: (challengeId: string, code: string) => Promise<IshlabchiqaruvchiProfile>
   logout: () => void
   setUser: (user: IshlabchiqaruvchiProfile) => void
 }
@@ -48,16 +50,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized)
   }, [])
 
-  const login = useCallback(async (username: string, password: string) => {
-    const result = await api.login(username, password)
+  const startLogin = useCallback(async (username: string, password: string) => {
+    return api.login(username, password)
+  }, [])
+
+  const completeLogin = useCallback(async (challengeId: string, code: string) => {
+    const result = await api.verifyLogin(challengeId, code)
     tokenStorage.set(result.token)
     const profile = withProfileFlag(await api.profile())
     setUser(profile)
     return profile
   }, [])
 
-  const register = useCallback(async (input: RegisterInput) => {
-    const result = await api.register(input)
+  const startRegister = useCallback(async (input: RegisterInput) => {
+    return api.register(input)
+  }, [])
+
+  const completeRegister = useCallback(async (challengeId: string, code: string) => {
+    const result = await api.verifyRegister(challengeId, code)
     tokenStorage.set(result.token)
     const profile = withProfileFlag(await api.profile())
     setUser(profile)
@@ -74,8 +84,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, setUser: applyUser }),
-    [user, loading, login, register, logout, applyUser],
+    () => ({
+      user,
+      loading,
+      startLogin,
+      completeLogin,
+      startRegister,
+      completeRegister,
+      logout,
+      setUser: applyUser,
+    }),
+    [user, loading, startLogin, completeLogin, startRegister, completeRegister, logout, applyUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

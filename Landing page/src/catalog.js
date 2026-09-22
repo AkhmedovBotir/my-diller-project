@@ -21,7 +21,7 @@ function productCardHTML(product) {
         ${
           image
             ? `<img src="${image}" alt="${escapeHtml(product.name)}" loading="lazy" />`
-            : `<div class="catalog-card-placeholder">📦</div>`
+            : `<div class="catalog-card-placeholder" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M7.5 4.2 16.5 9"/></svg></div>`
         }
         ${product.city ? `<span class="catalog-card-city">${escapeHtml(product.city)}</span>` : ''}
       </div>

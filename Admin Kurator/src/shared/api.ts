@@ -1,6 +1,19 @@
 import type {
   AdminProfileInput,
   ApiError,
+  BirgaCategory,
+  BirgaCategoryInput,
+  BirgaCustomer,
+  BirgaCustomerInput,
+  BirgaOrder,
+  BirgaOrderStatus,
+  BirgaGroupBuy,
+  BirgaGroupBuyInput,
+  BirgaGroupBuyStatus,
+  BirgaProduct,
+  BirgaProductInput,
+  BirgaSubcategory,
+  BirgaSubcategoryInput,
   CreateTolovSorovInput,
   Hujjat,
   Ishlabchiqaruvchi,
@@ -10,6 +23,7 @@ import type {
   KuratorKomissiyaItem,
   KuratorTolovSorovi,
   LoginResponse,
+  SmsChallenge,
   Notification,
   Order,
   OrderStatus,
@@ -74,7 +88,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // The API may return an empty error body.
     }
-    if (response.status === 401 && path !== LOGIN_PATH) {
+    if (response.status === 401 && !path.includes('/auth/')) {
       tokenStorage.remove()
       window.dispatchEvent(new Event('auth:unauthorized'))
     }
@@ -136,11 +150,56 @@ export interface ProductUpdatePayload {
   specs?: unknown
 }
 
+function buildBirgaGroupBuyForm(input: BirgaGroupBuyInput) {
+  const form = new FormData()
+  form.set('kind', input.kind)
+  form.set('title', input.title)
+  form.set('description', input.description ?? '')
+  if (input.product_id) form.set('product_id', String(input.product_id))
+  form.set('price', String(input.price))
+  form.set('min_volume', String(input.min_volume))
+  form.set('stock', String(input.stock))
+  form.set('items', JSON.stringify(input.items ?? []))
+  const existing = Array.from({ length: 5 }, (_, i) => {
+    if (input.photos?.[i]) return ''
+    return input.photo_urls?.[i] ?? ''
+  })
+  form.set('existing_urls', JSON.stringify(existing))
+  ;(input.photos ?? []).forEach((file, index) => {
+    if (file && index < 5) form.set(`photo_${index}`, file)
+  })
+  return form
+}
+
 export const api = {
   login: (username: string, password: string) =>
-    request<LoginResponse>(LOGIN_PATH, {
+    request<SmsChallenge>(LOGIN_PATH, {
       method: 'POST',
       body: JSON.stringify({ username, password }),
+    }),
+
+  verifyLogin: (challengeId: string, code: string) =>
+    request<LoginResponse>(`${LOGIN_PATH}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code }),
+    }),
+
+  resendSms: (challengeId: string, purpose: 'login' | 'register' | 'reset' = 'login') =>
+    request<SmsChallenge>(`/admin/auth/sms/resend?purpose=${purpose}`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId }),
+    }),
+
+  forgotPassword: (username: string) =>
+    request<SmsChallenge>('/admin/auth/forgot', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    }),
+
+  resetPassword: (challengeId: string, code: string, password: string) =>
+    request<{ message: string }>('/admin/auth/reset', {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code, password }),
     }),
 
   profile: () => request<import('./types').Admin>('/admin/profile'),
@@ -237,6 +296,158 @@ export const api = {
 
   markAllNotificationsRead: () =>
     request<{ ok: boolean }>('/notifications/read-all', { method: 'POST' }),
+
+  // --- Birga Xarid ---
+  birgaCategories: (limit = 100, offset = 0) =>
+    request<BirgaCategory[]>(`/birga-xarid/categories?limit=${limit}&offset=${offset}`),
+
+  createBirgaCategory: (input: BirgaCategoryInput) =>
+    request<BirgaCategory>('/birga-xarid/categories', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateBirgaCategory: (id: number, input: BirgaCategoryInput) =>
+    request<BirgaCategory>(`/birga-xarid/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  deleteBirgaCategory: (id: number) =>
+    request<void>(`/birga-xarid/categories/${id}`, { method: 'DELETE' }),
+
+  birgaSubcategories: (params?: { category_id?: number; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 100))
+    query.set('offset', String(params?.offset ?? 0))
+    if (params?.category_id) query.set('category_id', String(params.category_id))
+    return request<BirgaSubcategory[]>(`/birga-xarid/subcategories?${query}`)
+  },
+
+  createBirgaSubcategory: (input: BirgaSubcategoryInput) =>
+    request<BirgaSubcategory>('/birga-xarid/subcategories', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateBirgaSubcategory: (id: number, input: BirgaSubcategoryInput) =>
+    request<BirgaSubcategory>(`/birga-xarid/subcategories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  deleteBirgaSubcategory: (id: number) =>
+    request<void>(`/birga-xarid/subcategories/${id}`, { method: 'DELETE' }),
+
+  birgaProducts: (params?: { category_id?: number; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 100))
+    query.set('offset', String(params?.offset ?? 0))
+    if (params?.category_id) query.set('category_id', String(params.category_id))
+    return request<BirgaProduct[]>(`/birga-xarid/products?${query}`)
+  },
+
+  createBirgaProduct: (input: BirgaProductInput) => {
+    const form = new FormData()
+    form.set('category_id', String(input.category_id))
+    if (input.subcategory_id) form.set('subcategory_id', String(input.subcategory_id))
+    form.set('name', input.name)
+    form.set('description', input.description ?? '')
+    form.set('unit', input.unit ?? 'dona')
+    form.set('price', String(input.price))
+    form.set('stock', String(input.stock))
+    form.set('is_active', String(input.is_active ?? true))
+    if (input.photo) form.set('photo', input.photo)
+    return request<BirgaProduct>('/birga-xarid/products', { method: 'POST', body: form })
+  },
+
+  updateBirgaProduct: (id: number, input: BirgaProductInput) => {
+    const form = new FormData()
+    form.set('category_id', String(input.category_id))
+    if (input.subcategory_id) form.set('subcategory_id', String(input.subcategory_id))
+    form.set('name', input.name)
+    form.set('description', input.description ?? '')
+    form.set('unit', input.unit ?? 'dona')
+    form.set('price', String(input.price))
+    form.set('stock', String(input.stock))
+    form.set('is_active', String(input.is_active ?? true))
+    if (input.photo) form.set('photo', input.photo)
+    return request<BirgaProduct>(`/birga-xarid/products/${id}`, { method: 'PUT', body: form })
+  },
+
+  deleteBirgaProduct: (id: number) =>
+    request<void>(`/birga-xarid/products/${id}`, { method: 'DELETE' }),
+
+  birgaGroupBuys: (params?: { status?: BirgaGroupBuyStatus | ''; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 100))
+    query.set('offset', String(params?.offset ?? 0))
+    if (params?.status) query.set('status', params.status)
+    return request<BirgaGroupBuy[]>(`/birga-xarid/group-buys?${query}`)
+  },
+
+  birgaGroupBuy: (id: number) => request<BirgaGroupBuy>(`/birga-xarid/group-buys/${id}`),
+
+  createBirgaGroupBuy: (input: BirgaGroupBuyInput) => {
+    const form = buildBirgaGroupBuyForm(input)
+    return request<BirgaGroupBuy>('/birga-xarid/group-buys', { method: 'POST', body: form })
+  },
+
+  updateBirgaGroupBuy: (id: number, input: BirgaGroupBuyInput) => {
+    const form = buildBirgaGroupBuyForm(input)
+    return request<BirgaGroupBuy>(`/birga-xarid/group-buys/${id}`, { method: 'PUT', body: form })
+  },
+
+  setBirgaGroupBuyStatus: (id: number, status: BirgaGroupBuyStatus) =>
+    request<BirgaGroupBuy>(`/birga-xarid/group-buys/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    }),
+
+  deleteBirgaGroupBuy: (id: number) =>
+    request<void>(`/birga-xarid/group-buys/${id}`, { method: 'DELETE' }),
+
+  birgaOrders: (params?: { status?: BirgaOrderStatus | ''; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 100))
+    query.set('offset', String(params?.offset ?? 0))
+    if (params?.status) query.set('status', params.status)
+    return request<BirgaOrder[]>(`/birga-xarid/orders?${query}`)
+  },
+
+  birgaOrder: (id: number) => request<BirgaOrder>(`/birga-xarid/orders/${id}`),
+
+  birgaCustomers: (params?: { search?: string; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams()
+    query.set('limit', String(params?.limit ?? 50))
+    query.set('offset', String(params?.offset ?? 0))
+    if (params?.search) query.set('search', params.search)
+    return request<BirgaCustomer[]>(`/birga-xarid/customers?${query}`)
+  },
+
+  createBirgaCustomer: (input: BirgaCustomerInput) =>
+    request<BirgaCustomer>('/birga-xarid/customers', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  updateBirgaCustomer: (id: number, input: BirgaCustomerInput) =>
+    request<BirgaCustomer>(`/birga-xarid/customers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+
+  deleteBirgaCustomer: (id: number) =>
+    request<void>(`/birga-xarid/customers/${id}`, { method: 'DELETE' }),
+
+  blockBirgaCustomer: (id: number, reason = '') =>
+    request<BirgaCustomer>(`/birga-xarid/customers/${id}/block`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  unblockBirgaCustomer: (id: number) =>
+    request<BirgaCustomer>(`/birga-xarid/customers/${id}/unblock`, { method: 'POST' }),
 }
 
 export function getErrorMessage(error: unknown) {

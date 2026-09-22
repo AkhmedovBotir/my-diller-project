@@ -73,7 +73,7 @@ export function DashboardPage() {
               Xaridor kabineti
             </div>
             <h2 className="max-w-2xl text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
-              Assalomu alaykum, {user.first_name}!
+              Assalomu alaykum, {user.first_name || user.shop_name}!
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-emerald-50/60">
               {user.shop_name} do‘koni uchun katalogdan mahsulot tanlang va buyurtmalaringizni shu yerdan kuzating.

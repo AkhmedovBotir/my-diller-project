@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
+import { CustomSelect } from '../../shared/CustomSelect'
 import { formatDateTime } from '../../shared/date'
 import { useSnackbar } from '../../shared/Snackbar'
 import type { Category, CategoryInput, Subcategory, SubcategoryInput } from '../../shared/types'
@@ -501,6 +502,7 @@ function SubFormModal({
   const { showSnackbar } = useSnackbar()
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
+  const [categoryId, setCategoryId] = useState(String(subcategory?.category_id ?? defaultCategoryId))
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -508,7 +510,7 @@ function SubFormModal({
     setErrorField(undefined)
     const form = new FormData(event.currentTarget)
     const input: SubcategoryInput = {
-      category_id: Number(form.get('category_id')),
+      category_id: Number(categoryId),
       name: String(form.get('name')).trim(),
       description: String(form.get('description')),
     }
@@ -534,22 +536,14 @@ function SubFormModal({
         onClose={onClose}
       />
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
-        <label className="block">
-          <span className="mb-2 block text-xs font-bold text-slate-600">Kategoriya</span>
-          <select
-            name="category_id"
-            defaultValue={subcategory?.category_id ?? defaultCategoryId}
-            className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
-              errorField === 'category_id' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
-            }`}
-          >
-            {categories.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <CustomSelect
+          label="Kategoriya"
+          name="category_id"
+          value={categoryId}
+          invalid={errorField === 'category_id'}
+          options={categories.map((item) => ({ value: String(item.id), label: item.name }))}
+          onChange={setCategoryId}
+        />
         <Field name="name" label="Nomi" defaultValue={subcategory?.name} invalid={errorField === 'name'} />
         <TextArea
           name="description"

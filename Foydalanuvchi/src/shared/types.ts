@@ -69,23 +69,22 @@ export interface XaridorProfileInput {
 
 export interface RegisterInput {
   shop_name: string
-  first_name: string
-  last_name: string
+  stir: string
   phone: string
-  username: string
   password: string
-  stir?: string
-  bank_account?: string
-  bank_name?: string
-  mfo?: string
-  address?: string
-  lat?: number | null
-  lng?: number | null
 }
 
 export interface LoginResponse {
   token: string
   xaridor: Xaridor
+}
+
+export interface SmsChallenge {
+  sms_required: true
+  challenge_id: string
+  phone_masked: string
+  expires_in: number
+  resend_after: number
 }
 
 export interface Region {
@@ -242,6 +241,8 @@ export interface ApiError {
     | 'RUXSAT_YOQ'
     | 'TOPILMADI'
     | 'TAKRORIY_MALUMOT'
+    | 'JUDA_KOP_SOROV'
+    | 'TASHQI_XIZMAT_XATOSI'
     | 'ICHKI_SERVER_XATOSI'
   message: string
   field?: string

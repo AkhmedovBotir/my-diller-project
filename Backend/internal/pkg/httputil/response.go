@@ -84,6 +84,10 @@ func statusCode(status int) string {
 		return "TOPILMADI"
 	case http.StatusConflict:
 		return "TAKRORIY_MALUMOT"
+	case http.StatusTooManyRequests:
+		return "JUDA_KOP_SOROV"
+	case http.StatusBadGateway:
+		return "TASHQI_XIZMAT_XATOSI"
 	default:
 		return "ICHKI_SERVER_XATOSI"
 	}

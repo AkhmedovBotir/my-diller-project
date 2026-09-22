@@ -9,6 +9,14 @@
     "name": "diller",
     "sslmode": "disable"
   },
+  "birga_database": {
+    "host": "localhost",
+    "port": "5432",
+    "user": "postgres",
+    "password": "postgres",
+    "name": "birga_xarid",
+    "sslmode": "disable"
+  },
   "jwt": {
     "secret": "change-me-in-production",
     "ttl_hours": 24
@@ -50,5 +58,11 @@
   "upload": {
     "dir": "uploads",
     "public_base_url": "http://localhost:8080/uploads"
+  },
+  "eskiz": {
+    "email": "your-eskiz-email@example.com",
+    "password": "your-eskiz-api-password",
+    "from": "4546",
+    "base_url": "https://notify.eskiz.uz/api"
   }
 }

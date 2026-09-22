@@ -9,10 +9,10 @@ import type {
   Region,
   RegisterInput,
   ShartnomaResponse,
+  SmsChallenge,
   Subcategory,
   CatalogManufacturer,
   XaridorProfileResponse,
-  Xaridor,
   XaridorProfileInput,
 } from './types'
 
@@ -71,7 +71,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // The API may return an empty error body.
     }
-    if (response.status === 401 && path !== LOGIN_PATH) {
+    if (response.status === 401 && !path.includes('/auth/')) {
       tokenStorage.remove()
       window.dispatchEvent(new Event('auth:unauthorized'))
     }
@@ -112,15 +112,45 @@ async function downloadFile(path: string, filename: string) {
 
 export const api = {
   login: (username: string, password: string) =>
-    request<LoginResponse>(LOGIN_PATH, {
+    request<SmsChallenge>(LOGIN_PATH, {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
 
+  verifyLogin: (challengeId: string, code: string) =>
+    request<LoginResponse>(`${LOGIN_PATH}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code }),
+    }),
+
   register: (input: RegisterInput) =>
-    request<LoginResponse>('/xaridor/auth/register', {
+    request<SmsChallenge>('/xaridor/auth/register', {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+
+  verifyRegister: (challengeId: string, code: string) =>
+    request<LoginResponse>('/xaridor/auth/register/verify', {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code }),
+    }),
+
+  resendSms: (challengeId: string, purpose: 'login' | 'register' | 'reset') =>
+    request<SmsChallenge>(`/xaridor/auth/sms/resend?purpose=${purpose}`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId }),
+    }),
+
+  forgotPassword: (username: string) =>
+    request<SmsChallenge>('/xaridor/auth/forgot', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    }),
+
+  resetPassword: (challengeId: string, code: string, password: string) =>
+    request<{ message: string }>('/xaridor/auth/reset', {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code, password }),
     }),
 
   profile: () => request<XaridorProfileResponse>('/xaridor/profile'),
@@ -245,25 +275,4 @@ export function getErrorMessage(error: unknown) {
 
 export function getErrorField(error: unknown) {
   return error instanceof ApiRequestError ? error.field : undefined
-}
-
-export function isXaridorProfileComplete(user: Xaridor | null | undefined) {
-  if (!user) return false
-  return (
-    Boolean(user.shop_name?.trim()) &&
-    Boolean(user.first_name?.trim()) &&
-    Boolean(user.last_name?.trim()) &&
-    Boolean(user.phone?.trim()) &&
-    Boolean(user.mfy_id) &&
-    Boolean(user.birth_date) &&
-    Boolean(user.stir?.trim()) &&
-    Boolean(user.bank_account?.trim()) &&
-    Boolean(user.bank_name?.trim()) &&
-    Boolean(user.mfo?.trim()) &&
-    Boolean(user.address?.trim()) &&
-    user.lat != null &&
-    !Number.isNaN(Number(user.lat)) &&
-    user.lng != null &&
-    !Number.isNaN(Number(user.lng))
-  )
 }

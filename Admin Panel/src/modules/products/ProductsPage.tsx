@@ -16,8 +16,9 @@ import {
   XCircle,
 } from 'lucide-react'
 import { api, getErrorField, getErrorMessage } from '../../shared/api'
+import { CustomSelect } from '../../shared/CustomSelect'
 import { formatDateTime } from '../../shared/date'
-import { paymentTermLabel } from '../../shared/order'
+import { formatMoneyInput, parseMoneyInput, paymentTermLabel } from '../../shared/order'
 import { deltaToHtml, deltaToPlainText, formatPrice, plainTextToDelta } from '../../shared/product'
 import { useSnackbar } from '../../shared/Snackbar'
 import type {
@@ -567,7 +568,9 @@ function ProductEditModal({
   const [saving, setSaving] = useState(false)
   const [errorField, setErrorField] = useState<string>()
   const [categoryId, setCategoryId] = useState(product.category_id)
+  const [subcategoryId, setSubcategoryId] = useState(String(product.subcategory_id))
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>(product.payment_term)
+  const [price, setPrice] = useState(formatMoneyInput(String(product.price)))
   const [images, setImages] = useState<File[]>([])
 
   const availableSubs = useMemo(
@@ -611,9 +614,9 @@ function ProductEditModal({
         name: String(form.get('name')),
         city: String(form.get('city') || ''),
         description: plainTextToDelta(String(form.get('description'))),
-        category_id: Number(form.get('category_id')),
-        subcategory_id: Number(form.get('subcategory_id')),
-        price: Number(form.get('price')),
+        category_id: categoryId,
+        subcategory_id: Number(subcategoryId),
+        price: parseMoneyInput(price),
         quantity: Number(form.get('quantity')),
         moq,
         payment_term: paymentTerm,
@@ -658,60 +661,52 @@ function ProductEditModal({
           />
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
+          <CustomSelect
+            label="Kategoriya"
+            name="category_id"
+            value={String(categoryId)}
+            invalid={errorField === 'category_id'}
+            options={categories.map((item) => ({ value: String(item.id), label: item.name }))}
+            onChange={(value) => {
+              const nextId = Number(value)
+              setCategoryId(nextId)
+              const first = subcategories.find((item) => item.category_id === nextId)
+              setSubcategoryId(first ? String(first.id) : '')
+            }}
+          />
+          <CustomSelect
+            label="Subkategoriya"
+            name="subcategory_id"
+            value={subcategoryId}
+            invalid={errorField === 'subcategory_id'}
+            options={availableSubs.map((item) => ({ value: String(item.id), label: item.name }))}
+            onChange={setSubcategoryId}
+            disabled={availableSubs.length === 0}
+            placeholder={availableSubs.length === 0 ? 'Subkategoriya yo‘q' : 'Tanlang'}
+          />
           <label className="block">
-            <span className="mb-2 block text-xs font-bold text-slate-600">Kategoriya</span>
-            <select
-              name="category_id"
-              value={categoryId}
-              onChange={(event) => setCategoryId(Number(event.target.value))}
+            <span className="mb-2 block text-xs font-bold text-slate-600">Narx</span>
+            <input
+              inputMode="numeric"
+              value={price}
+              onChange={(e) => setPrice(formatMoneyInput(e.target.value))}
               className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
-                errorField === 'category_id' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
+                errorField === 'price' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
               }`}
-            >
-              {categories.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+              placeholder="1 000"
+              required
+            />
           </label>
-          <label className="block">
-            <span className="mb-2 block text-xs font-bold text-slate-600">Subkategoriya</span>
-            <select
-              name="subcategory_id"
-              defaultValue={product.subcategory_id}
-              key={categoryId}
-              className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
-                errorField === 'subcategory_id' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
-              }`}
-            >
-              {availableSubs.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field name="price" label="Narx" type="number" defaultValue={String(product.price)} invalid={errorField === 'price'} />
           <Field name="quantity" label="Miqdor" type="number" defaultValue={String(product.quantity)} invalid={errorField === 'quantity'} />
           <Field name="moq" label="MOQ (min. buyurtma)" type="number" defaultValue={String(product.moq)} invalid={errorField === 'moq'} />
-          <label className="block">
-            <span className="mb-2 block text-xs font-bold text-slate-600">To‘lov sharti</span>
-            <select
-              name="payment_term"
-              value={paymentTerm}
-              onChange={(event) => setPaymentTerm(event.target.value as PaymentTerm)}
-              className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none ${
-                errorField === 'payment_term' ? 'border-red-300' : 'border-slate-200 focus:border-[#397461]'
-              }`}
-            >
-              {PAYMENT_TERM_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <CustomSelect
+            label="To‘lov sharti"
+            name="payment_term"
+            value={paymentTerm}
+            invalid={errorField === 'payment_term'}
+            options={PAYMENT_TERM_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+            onChange={(value) => setPaymentTerm(value as PaymentTerm)}
+          />
           {paymentTerm === 'deferred' && (
             <Field
               name="payment_days"

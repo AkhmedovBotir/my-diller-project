@@ -127,6 +127,43 @@ type LoginResponse struct {
 	Xaridor *Xaridor `json:"xaridor"`
 }
 
+// RegisterInput — xaridorning o'zi ro'yxatdan o'tishi uchun minimal maydonlar.
+// Ism-familiya va qolgan rekvizitlar keyinroq profilni to'ldirishda kiritiladi.
+type RegisterInput struct {
+	ShopName string `json:"shop_name"`
+	Stir     string `json:"stir"`
+	Phone    string `json:"phone"`
+	Password string `json:"password"`
+}
+
+func (i RegisterInput) Validate() error {
+	if strings.TrimSpace(i.ShopName) == "" {
+		return validationError("shop_name", "Do'kon nomi kiritilishi shart")
+	}
+	if strings.TrimSpace(i.Stir) == "" {
+		return validationError("stir", "STIR (INN) kiritilishi shart")
+	}
+	if strings.TrimSpace(i.Phone) == "" {
+		return validationError("phone", "Telefon raqami kiritilishi shart")
+	}
+	if len(i.Password) < 6 {
+		return validationError("password", "Parol kamida 6 ta belgidan iborat bo'lishi kerak")
+	}
+	return nil
+}
+
+// normalizePhoneDigits telefon raqamidan faqat raqamlarni qoldiradi —
+// username sifatida ishlatiladi.
+func normalizePhoneDigits(phone string) string {
+	var b strings.Builder
+	for _, r := range phone {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 type CreateInput struct {
 	ShopName    string   `json:"shop_name"`
 	FirstName   string   `json:"first_name"`

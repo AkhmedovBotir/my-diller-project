@@ -2,6 +2,7 @@ package ishlabchiqaruvchi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"diller-backend/internal/pkg/auth"
 	"diller-backend/internal/pkg/kuratorassign"
+	"diller-backend/modules/eskiz"
 	"diller-backend/modules/region"
 )
 
@@ -21,55 +23,68 @@ type Service struct {
 	pool      *pgxpool.Pool
 	jwtSecret string
 	jwtTTL    time.Duration
+	sms       *eskiz.Service
 }
 
-func NewService(repo *Repository, pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration) *Service {
-	return &Service{repo: repo, pool: pool, jwtSecret: jwtSecret, jwtTTL: jwtTTL}
+func NewService(repo *Repository, pool *pgxpool.Pool, jwtSecret string, jwtTTL time.Duration, sms *eskiz.Service) *Service {
+	return &Service{repo: repo, pool: pool, jwtSecret: jwtSecret, jwtTTL: jwtTTL, sms: sms}
 }
 
-func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResponse, error) {
+type registerOTPPayload struct {
+	RegisterInput
+	Username     string `json:"username"`
+	PasswordHash string `json:"password_hash"`
+}
+
+func (s *Service) Login(ctx context.Context, input LoginInput) (*eskiz.Challenge, error) {
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
 
-	// Username yoki telefon raqami orqali kirish — register'da username=phone
-	// bo'lgani uchun ikkisi ham ishlaydi, lekin admin tomonidan qo'lda
-	// yaratilgan hisoblarda username boshqacha bo'lishi mumkin.
-	item, err := s.repo.GetByUsername(ctx, input.Username)
+	item, err := s.findAccount(ctx, input.Username)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			item, err = s.repo.GetByPhone(ctx, input.Username)
+			return nil, ErrInvalidCredentials
 		}
-		if err != nil {
-			if errors.Is(err, ErrNotFound) {
-				return nil, ErrInvalidCredentials
-			}
-			return nil, err
-		}
+		return nil, err
 	}
 
 	if bcrypt.CompareHashAndPassword([]byte(item.PasswordHash), []byte(input.Password)) != nil {
 		return nil, ErrInvalidCredentials
 	}
 
-	token, err := auth.GenerateToken(
-		s.jwtSecret,
-		s.jwtTTL,
-		item.ID,
-		auth.SubjectIshlabchiqaruvchi,
-		"",
-	)
-	if err != nil {
-		return nil, fmt.Errorf("tokenni yaratib bo'lmadi: %w", err)
-	}
-
-	return &LoginResponse{Token: token, Ishlabchiqaruvchi: item}, nil
+	return s.sms.Issue(ctx, eskiz.IssueInput{
+		Phone:       item.Phone,
+		Purpose:     eskiz.PurposeLogin,
+		SubjectType: auth.SubjectIshlabchiqaruvchi,
+		Payload:     eskiz.UserIDPayload(item.ID),
+	})
 }
 
-// Register ishlab chiqaruvchining o'zi ro'yxatdan o'tishi — username telefon
-// raqamidan (faqat raqamlar) olinadi, ism-familiya keyinroq profilda
-// to'ldiriladi.
-func (s *Service) Register(ctx context.Context, input RegisterInput) (*LoginResponse, error) {
+func (s *Service) VerifyLogin(ctx context.Context, input eskiz.VerifyInput) (*LoginResponse, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+
+	otp, err := s.sms.Verify(ctx, input.ChallengeID, input.Code, eskiz.PurposeLogin, auth.SubjectIshlabchiqaruvchi)
+	if err != nil {
+		return nil, err
+	}
+
+	userID, err := eskiz.ParseUserID(otp.Payload)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.tokenResponse(item)
+}
+
+func (s *Service) Register(ctx context.Context, input RegisterInput) (*eskiz.Challenge, error) {
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
@@ -79,23 +94,116 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (*LoginResp
 		return nil, validationError("phone", "Telefon raqami noto'g'ri")
 	}
 
+	if _, err := s.repo.GetByUsername(ctx, username); err == nil {
+		return nil, ErrUsernameTaken
+	} else if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+	if _, err := s.repo.GetByPhone(ctx, input.Phone); err == nil {
+		return nil, ErrUsernameTaken
+	} else if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+
 	hash, err := hashPassword(input.Password)
 	if err != nil {
 		return nil, err
 	}
+	input.Password = ""
 
-	createInput := CreateInput{
-		CompanyName: input.CompanyName,
+	return s.sms.Issue(ctx, eskiz.IssueInput{
 		Phone:       input.Phone,
-		Username:    username,
-		Stir:        input.Stir,
+		Purpose:     eskiz.PurposeRegister,
+		SubjectType: auth.SubjectIshlabchiqaruvchi,
+		Payload: eskiz.MustJSON(registerOTPPayload{
+			RegisterInput: input,
+			Username:      username,
+			PasswordHash:  hash,
+		}),
+	})
+}
+
+func (s *Service) VerifyRegister(ctx context.Context, input eskiz.VerifyInput) (*LoginResponse, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
 	}
 
-	item, err := s.repo.Create(ctx, createInput, hash)
+	otp, err := s.sms.Verify(ctx, input.ChallengeID, input.Code, eskiz.PurposeRegister, auth.SubjectIshlabchiqaruvchi)
 	if err != nil {
 		return nil, err
 	}
 
+	var payload registerOTPPayload
+	if err := json.Unmarshal(otp.Payload, &payload); err != nil {
+		return nil, err
+	}
+
+	createInput := CreateInput{
+		CompanyName: payload.CompanyName,
+		Phone:       payload.Phone,
+		Username:    payload.Username,
+		Stir:        payload.Stir,
+	}
+
+	item, err := s.repo.Create(ctx, createInput, payload.PasswordHash)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.tokenResponse(item)
+}
+
+func (s *Service) ResendSMS(ctx context.Context, input eskiz.ResendInput, purpose string) (*eskiz.Challenge, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+	return s.sms.Resend(ctx, input.ChallengeID, purpose, auth.SubjectIshlabchiqaruvchi)
+}
+
+func (s *Service) ForgotPassword(ctx context.Context, input eskiz.ForgotInput) (*eskiz.Challenge, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+
+	item, err := s.findAccount(ctx, strings.TrimSpace(input.Username))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, validationError("username", "Hisob topilmadi")
+		}
+		return nil, err
+	}
+
+	return s.sms.Issue(ctx, eskiz.IssueInput{
+		Phone:       item.Phone,
+		Purpose:     eskiz.PurposeReset,
+		SubjectType: auth.SubjectIshlabchiqaruvchi,
+		Payload:     eskiz.UserIDPayload(item.ID),
+	})
+}
+
+func (s *Service) ResetPassword(ctx context.Context, input eskiz.ResetInput) error {
+	if err := input.Validate(); err != nil {
+		return err
+	}
+
+	otp, err := s.sms.Verify(ctx, input.ChallengeID, input.Code, eskiz.PurposeReset, auth.SubjectIshlabchiqaruvchi)
+	if err != nil {
+		return err
+	}
+
+	userID, err := eskiz.ParseUserID(otp.Payload)
+	if err != nil {
+		return err
+	}
+
+	hash, err := hashPassword(input.Password)
+	if err != nil {
+		return err
+	}
+	return s.repo.UpdatePassword(ctx, userID, hash)
+}
+
+func (s *Service) tokenResponse(item *Ishlabchiqaruvchi) (*LoginResponse, error) {
 	token, err := auth.GenerateToken(
 		s.jwtSecret,
 		s.jwtTTL,
@@ -106,8 +214,27 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (*LoginResp
 	if err != nil {
 		return nil, fmt.Errorf("tokenni yaratib bo'lmadi: %w", err)
 	}
-
 	return &LoginResponse{Token: token, Ishlabchiqaruvchi: item}, nil
+}
+
+func (s *Service) findAccount(ctx context.Context, login string) (*Ishlabchiqaruvchi, error) {
+	for _, candidate := range eskiz.LookupCandidates(login) {
+		item, err := s.repo.GetByUsername(ctx, candidate)
+		if err == nil {
+			return item, nil
+		}
+		if !errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+		item, err = s.repo.GetByPhone(ctx, candidate)
+		if err == nil {
+			return item, nil
+		}
+		if !errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+	}
+	return nil, ErrNotFound
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*Ishlabchiqaruvchi, error) {

@@ -1,24 +1,25 @@
 import { useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Eye, EyeOff, LoaderCircle, ShoppingBag } from 'lucide-react'
+import { ArrowRight, LoaderCircle, ShoppingBag } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { getErrorField, getErrorMessage } from '../../shared/api'
-import { LocationPicker } from '../../shared/LocationPicker'
+import { getErrorField, getErrorMessage, api } from '../../shared/api'
+import { PasswordInput } from '../../shared/PasswordInput'
+import { PhoneInput } from '../../shared/PhoneInput'
+import { isProfileComplete } from '../../shared/profileComplete'
+import { SmsVerifyForm } from '../../shared/SmsVerifyForm'
 import { useSnackbar } from '../../shared/Snackbar'
+import type { SmsChallenge } from '../../shared/types'
 import { useAuth } from './AuthContext'
 
 export function RegisterPage() {
-  const { user, register } = useAuth()
+  const { user, startRegister, completeRegister } = useAuth()
   const { showSnackbar } = useSnackbar()
   const navigate = useNavigate()
-  const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorField, setErrorField] = useState<string>()
-  const [address, setAddress] = useState('')
-  const [lat, setLat] = useState<number | null>(null)
-  const [lng, setLng] = useState<number | null>(null)
+  const [challenge, setChallenge] = useState<SmsChallenge | null>(null)
 
-  if (user) return <Navigate to="/" replace />
+  if (user) return <Navigate to={isProfileComplete(user) ? '/' : '/profile'} replace />
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -26,22 +27,14 @@ export function RegisterPage() {
     setSubmitting(true)
     const form = new FormData(event.currentTarget)
     try {
-      const registeredUser = await register({
+      const next = await startRegister({
         shop_name: String(form.get('shop_name') ?? '').trim(),
-        first_name: String(form.get('first_name') ?? '').trim(),
-        last_name: String(form.get('last_name') ?? '').trim(),
-        phone: String(form.get('phone') ?? '').trim(),
-        username: String(form.get('username') ?? '').trim(),
-        password: String(form.get('password') ?? ''),
         stir: String(form.get('stir') ?? '').trim(),
-        bank_account: String(form.get('bank_account') ?? '').trim(),
-        bank_name: String(form.get('bank_name') ?? '').trim(),
-        mfo: String(form.get('mfo') ?? '').trim(),
-        address: address.trim(),
-        ...(lat != null && lng != null ? { lat, lng } : {}),
+        phone: String(form.get('phone') ?? '').trim(),
+        password: String(form.get('password') ?? ''),
       })
-      showSnackbar(`Xush kelibsiz, ${registeredUser.first_name}!`)
-      navigate('/', { replace: true })
+      setChallenge(next)
+      showSnackbar(`SMS kod ${next.phone_masked} raqamiga yuborildi`)
     } catch (registerError) {
       showSnackbar(getErrorMessage(registerError), 'error')
       setErrorField(getErrorField(registerError))
@@ -52,10 +45,11 @@ export function RegisterPage() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#f5f7f6] text-slate-950">
-      <div className="grid min-h-screen lg:grid-cols-[.85fr_1.15fr]">
+      <div className="grid min-h-screen lg:grid-cols-[1.05fr_.95fr]">
         <section className="relative hidden overflow-hidden bg-[#102d26] p-14 text-white lg:flex lg:flex-col lg:justify-between">
           <div className="absolute -left-32 top-1/3 size-96 rounded-full bg-emerald-400/10 blur-3xl" />
           <div className="absolute -right-24 -top-24 size-80 rounded-full border border-white/10" />
+          <div className="absolute -right-5 top-8 size-52 rounded-full border border-white/10" />
 
           <motion.div
             initial={{ opacity: 0, y: -14 }}
@@ -81,13 +75,13 @@ export function RegisterPage() {
               <span className="size-1.5 rounded-full bg-[#c9f560]" />
               Yangi hisob
             </div>
-            <h1 className="text-4xl font-semibold leading-[1.1] tracking-[-0.04em] xl:text-5xl">
+            <h1 className="text-5xl font-semibold leading-[1.08] tracking-[-0.04em] xl:text-6xl">
               Do‘koningizni
               <span className="block text-[#c9f560]">ro‘yxatdan o‘tkazing.</span>
             </h1>
             <p className="mt-6 max-w-md text-base leading-7 text-emerald-50/60">
-              Rekvizit va manzil ma’lumotlari shartnoma hamda hisob-fakturalarni
-              to‘g‘ri to‘ldirish uchun ishlatiladi.
+              Ro‘yxatdan o‘tgach, buyurtma berishdan oldin profilni to‘liq
+              to‘ldirishingiz kerak bo‘ladi.
             </p>
           </motion.div>
 
@@ -96,7 +90,7 @@ export function RegisterPage() {
           </p>
         </section>
 
-        <section className="relative flex items-center justify-center px-6 py-10 sm:px-12">
+        <section className="relative flex items-center justify-center px-6 py-12 sm:px-12">
           <div className="absolute left-6 top-6 flex items-center gap-2 lg:hidden">
             <div className="grid size-9 place-items-center rounded-xl bg-[#173c32] text-[#c9f560]">
               <ShoppingBag size={20} />
@@ -108,105 +102,51 @@ export function RegisterPage() {
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.45 }}
-            className="w-full max-w-2xl py-10"
+            className="w-full max-w-md"
           >
             <div className="mb-8">
               <p className="mb-3 text-sm font-semibold text-[#397461]">XARIDOR</p>
-              <h2 className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-4xl">
+              <h2 className="text-4xl font-semibold tracking-[-0.04em] text-slate-950">
                 Ro‘yxatdan o‘tish
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-500">
-                Asosiy maydonlarni to‘ldiring. Rekvizit va xaritani keyinroq
-                profilda ham to‘ldirishingiz mumkin — buyurtma uchun ular shart.
+                Qolgan rekvizit ma’lumotlarini keyinroq profilda to‘ldirasiz.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Asosiy ma’lumotlar
-                </p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field name="shop_name" label="Do‘kon nomi" invalid={errorField === 'shop_name'} className="sm:col-span-2" />
-                  <Field name="first_name" label="Ism" invalid={errorField === 'first_name'} />
-                  <Field name="last_name" label="Familiya" invalid={errorField === 'last_name'} />
-                  <Field name="phone" label="Telefon raqami" type="tel" invalid={errorField === 'phone'} />
-                  <Field name="username" label="Foydalanuvchi nomi" invalid={errorField === 'username'} />
-                </div>
-              </div>
-
-              <div>
-                <div className="relative">
-                  <span className="mb-2 block text-sm font-semibold text-slate-700">Parol</span>
-                  <div className="relative">
-                    <input
-                      name="password"
-                      required
-                      minLength={6}
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Kamida 6 ta belgi"
-                      className={`h-12 w-full rounded-xl border bg-white px-4 pr-12 text-sm outline-none transition placeholder:text-slate-400 focus:ring-4 ${
-                        errorField === 'password'
-                          ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-                          : 'border-slate-200 focus:border-[#397461] focus:ring-[#397461]/10'
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((current) => !current)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-700"
-                      aria-label={showPassword ? 'Parolni yashirish' : 'Parolni ko‘rsatish'}
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Rekvizit ma’lumotlari (ixtiyoriy)
-                </p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field name="stir" label="STIR" required={false} invalid={errorField === 'stir'} />
-                  <Field name="bank_name" label="Bank nomi" required={false} invalid={errorField === 'bank_name'} />
-                  <Field name="mfo" label="MFO" required={false} invalid={errorField === 'mfo'} />
-                  <Field name="bank_account" label="Hisob raqami" required={false} invalid={errorField === 'bank_account'} />
-                </div>
-
-                <div className="mt-4">
-                  <LocationPicker
-                    lat={lat}
-                    lng={lng}
-                    onChange={({ lat: nextLat, lng: nextLng, address: nextAddress }) => {
-                      setLat(nextLat)
-                      setLng(nextLng)
-                      if (nextAddress) setAddress(nextAddress)
-                    }}
-                    className="mb-4"
-                  />
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-semibold text-slate-700">
-                      Manzil
-                      <span className="ml-1 font-normal text-slate-400">(ixtiyoriy)</span>
-                    </span>
-                    <input
-                      value={address}
-                      onChange={(event) => setAddress(event.target.value)}
-                      placeholder="Ko‘cha, uy, shahar..."
-                      className={`h-12 w-full rounded-xl border bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:ring-4 ${
-                        errorField === 'address'
-                          ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-                          : 'border-slate-200 focus:border-[#397461] focus:ring-[#397461]/10'
-                      }`}
-                    />
-                  </label>
-                  <p className="mt-2 text-[11px] text-slate-400">
-                    Koordinatalar faqat xarita orqali tanlanadi. Buyurtma berishdan oldin
-                    manzil va xaritani to‘ldirish shart.
-                  </p>
-                </div>
-              </div>
+            {challenge ? (
+              <SmsVerifyForm
+                phoneMasked={challenge.phone_masked}
+                submitting={submitting}
+                resendAfter={challenge.resend_after}
+                onSubmit={(code) => {
+                  void (async () => {
+                    setSubmitting(true)
+                    try {
+                      await completeRegister(challenge.challenge_id, code)
+                      showSnackbar('Buyurtma berishdan oldin profilni 100% to‘ldiring')
+                      navigate('/profile', { replace: true })
+                    } catch (registerError) {
+                      showSnackbar(getErrorMessage(registerError), 'error')
+                    } finally {
+                      setSubmitting(false)
+                    }
+                  })()
+                }}
+                onResend={async () => {
+                  const next = await api.resendSms(challenge.challenge_id, 'register')
+                  setChallenge(next)
+                  showSnackbar('SMS kod qayta yuborildi')
+                  return next.resend_after
+                }}
+                onBack={() => setChallenge(null)}
+              />
+            ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <Field name="shop_name" label="Do‘kon nomi" invalid={errorField === 'shop_name'} />
+              <Field name="stir" label="STIR (INN)" invalid={errorField === 'stir'} />
+              <PhoneInput invalid={errorField === 'phone'} labelStyle="auth" />
+              <PasswordInput invalid={errorField === 'password'} labelStyle="auth" />
 
               <motion.button
                 whileHover={{ y: -2 }}
@@ -227,6 +167,7 @@ export function RegisterPage() {
                 )}
               </motion.button>
             </form>
+            )}
 
             <p className="mt-7 text-center text-sm text-slate-500">
               Hisobingiz bormi?{' '}
@@ -245,27 +186,20 @@ function Field({
   name,
   label,
   type = 'text',
-  required = true,
   invalid = false,
-  className = '',
 }: {
   name: string
   label: string
   type?: string
-  required?: boolean
   invalid?: boolean
-  className?: string
 }) {
   return (
-    <label className={`block ${className}`}>
-      <span className="mb-2 block text-sm font-semibold text-slate-700">
-        {label}
-        {!required && <span className="ml-1 font-normal text-slate-400">(ixtiyoriy)</span>}
-      </span>
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-slate-700">{label}</span>
       <input
         name={name}
         type={type}
-        required={required}
+        required
         className={`h-12 w-full rounded-xl border bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:ring-4 ${
           invalid
             ? 'border-red-300 focus:border-red-400 focus:ring-red-100'

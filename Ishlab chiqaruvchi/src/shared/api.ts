@@ -6,6 +6,7 @@ import type {
   IshlabchiqaruvchiInput,
   IshlabchiqaruvchiProfile,
   LoginResponse,
+  SmsChallenge,
   Notification,
   Order,
   OrderStatus,
@@ -97,7 +98,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // The API may return an empty error body.
     }
-    if (response.status === 401 && path !== LOGIN_PATH) {
+    if (response.status === 401 && !path.includes('/auth/')) {
       tokenStorage.remove()
       window.dispatchEvent(new Event('auth:unauthorized'))
     }
@@ -138,15 +139,45 @@ async function downloadFile(path: string, filename: string) {
 
 export const api = {
   login: (username: string, password: string) =>
-    request<LoginResponse>(LOGIN_PATH, {
+    request<SmsChallenge>(LOGIN_PATH, {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
 
+  verifyLogin: (challengeId: string, code: string) =>
+    request<LoginResponse>(`${LOGIN_PATH}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code }),
+    }),
+
   register: (input: RegisterInput) =>
-    request<LoginResponse>('/ishlabchiqaruvchi/auth/register', {
+    request<SmsChallenge>('/ishlabchiqaruvchi/auth/register', {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+
+  verifyRegister: (challengeId: string, code: string) =>
+    request<LoginResponse>('/ishlabchiqaruvchi/auth/register/verify', {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code }),
+    }),
+
+  resendSms: (challengeId: string, purpose: 'login' | 'register' | 'reset') =>
+    request<SmsChallenge>(`/ishlabchiqaruvchi/auth/sms/resend?purpose=${purpose}`, {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId }),
+    }),
+
+  forgotPassword: (username: string) =>
+    request<SmsChallenge>('/ishlabchiqaruvchi/auth/forgot', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    }),
+
+  resetPassword: (challengeId: string, code: string, password: string) =>
+    request<{ message: string }>('/ishlabchiqaruvchi/auth/reset', {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id: challengeId, code, password }),
     }),
 
   profile: () => request<IshlabchiqaruvchiProfile>('/ishlabchiqaruvchi/profile'),

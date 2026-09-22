@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  AlertTriangle,
   Bell,
   ChevronDown,
   ClipboardList,
@@ -20,6 +21,7 @@ import { useNotifications } from '../modules/notifications/NotificationsContext'
 import { NotifSoundToggle } from '../shared/NotifSoundToggle'
 import { TechnicalHelp } from '../shared/TechnicalHelp'
 import { MyCurator } from '../shared/MyCurator'
+import { isProfileComplete } from '../shared/profileComplete'
 
 const TITLES: Record<string, string> = {
   '/profile': 'Mening profilim',
@@ -185,10 +187,10 @@ export function AppShell() {
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white py-2 pl-2 pr-3 transition hover:border-slate-300"
               >
                 <div className="grid size-7 place-items-center rounded-lg bg-[#dff6b0] text-xs font-bold text-[#173c32]">
-                  {user.first_name.charAt(0)}
+                  {(user.first_name || user.shop_name).charAt(0)}
                 </div>
                 <span className="hidden max-w-28 truncate text-xs font-bold text-slate-700 sm:block">
-                  {user.first_name}
+                  {user.first_name || user.shop_name}
                 </span>
                 <ChevronDown
                   size={14}
@@ -214,7 +216,9 @@ export function AppShell() {
                     >
                       <div className="border-b border-slate-100 px-3 py-3">
                         <p className="truncate text-sm font-bold text-slate-800">
-                          {user.first_name} {user.last_name}
+                          {user.first_name || user.last_name
+                            ? `${user.first_name} ${user.last_name}`
+                            : user.shop_name}
                         </p>
                         <p className="mt-1 truncate text-xs text-slate-400">{user.shop_name}</p>
                         <span className="mt-2 inline-flex rounded-full bg-[#eff8f3] px-2 py-1 text-[10px] font-bold text-[#397461]">
@@ -256,6 +260,15 @@ export function AppShell() {
         </header>
 
         <main className="mx-auto max-w-[1480px] p-5 sm:p-8">
+          {!isProfileComplete(user) && (
+            <NavLink
+              to="/profile"
+              className="mb-5 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-sm font-semibold text-amber-800 transition hover:border-amber-300"
+            >
+              <AlertTriangle size={18} className="shrink-0" />
+              Buyurtma berishdan oldin profilni 100% to‘ldiring
+            </NavLink>
+          )}
           <motion.div
             key={pathname}
             initial={{ opacity: 0, y: 8 }}

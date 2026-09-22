@@ -90,6 +90,28 @@ func (r *Repository) GetByUsername(ctx context.Context, username string) (*Xarid
 	return item, nil
 }
 
+func (r *Repository) GetByPhone(ctx context.Context, phone string) (*Xaridor, error) {
+	query := fmt.Sprintf(`SELECT %s FROM xaridorlar WHERE phone = $1`, columns)
+
+	item, err := scanRow(r.pool.QueryRow(ctx, query, phone))
+	if err != nil {
+		return nil, mapError(err, "xaridorni telefon bo'yicha olib bo'lmadi")
+	}
+	return item, nil
+}
+
+func (r *Repository) UpdatePassword(ctx context.Context, id int64, passwordHash string) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE xaridorlar SET password_hash = $1, updated_at = now() WHERE id = $2`, passwordHash, id)
+	if err != nil {
+		return fmt.Errorf("parolni yangilab bo'lmadi: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *Repository) List(ctx context.Context, limit, offset int) ([]Xaridor, error) {
 	query := fmt.Sprintf(`SELECT %s FROM xaridorlar ORDER BY id LIMIT $1 OFFSET $2`, columns)
 

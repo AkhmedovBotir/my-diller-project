@@ -36,8 +36,10 @@ func New(dir, publicBase string) (*Storage, error) {
 	if dir == "" {
 		dir = "uploads"
 	}
-	if err := os.MkdirAll(filepath.Join(dir, "products"), 0o755); err != nil {
-		return nil, fmt.Errorf("upload papkasini yaratib bo'lmadi: %w", err)
+	for _, sub := range []string{"products", "birga"} {
+		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
+			return nil, fmt.Errorf("upload papkasini yaratib bo'lmadi: %w", err)
+		}
 	}
 	return &Storage{dir: dir, publicBase: strings.TrimRight(publicBase, "/")}, nil
 }
@@ -120,6 +122,46 @@ func (s *Storage) SaveProductImages(files []*multipart.FileHeader) ([]string, er
 	}
 
 	return urls, nil
+}
+
+// SaveBirgaImage Bitta rasmni birga/ papkasiga saqlaydi (Birga Xarid mahsulotlari).
+func (s *Storage) SaveBirgaImage(header *multipart.FileHeader) (string, error) {
+	if header == nil {
+		return "", fmt.Errorf("rasm yuklanmadi")
+	}
+	if header.Size > MaxImageBytes {
+		return "", fmt.Errorf("rasm hajmi 5 MB dan oshmasligi kerak")
+	}
+
+	file, err := header.Open()
+	if err != nil {
+		return "", fmt.Errorf("rasmni ochib bo'lmadi: %w", err)
+	}
+
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	contentType := http.DetectContentType(buf[:n])
+	if !allowedImageTypes[contentType] {
+		_ = file.Close()
+		return "", fmt.Errorf("ruxsat etilmagan rasm turi (faqat jpeg, png, webp, gif)")
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		_ = file.Close()
+		return "", fmt.Errorf("rasmni o'qib bo'lmadi: %w", err)
+	}
+
+	normalized, err := imageutil.NormalizeProductImage(file)
+	_ = file.Close()
+	if err != nil {
+		return "", err
+	}
+
+	relative := filepath.ToSlash(filepath.Join("birga", uuid.NewString()+".jpg"))
+	fullPath := filepath.Join(s.dir, filepath.FromSlash(relative))
+	if err := os.WriteFile(fullPath, normalized, 0o644); err != nil {
+		return "", fmt.Errorf("rasmni saqlab bo'lmadi: %w", err)
+	}
+	return s.PublicURL(relative), nil
 }
 
 func (s *Storage) RemoveByURLs(urls []string) {
